@@ -37,7 +37,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:56493", "http://localhost:8000", "http://127.0.0.1:8000", "http://10.0.2.2:8000", "http://localhost:49887", "http://127.0.0.1:49887"],
+    allow_origins=["http://localhost:50787", "http://localhost:8000", "http://127.0.0.1:8000", "http://10.0.2.2:8000", "http://localhost:49887", "http://127.0.0.1:49887"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -182,7 +182,6 @@ def insert_sample_products():
 insert_sample_products()
 
 
-# --- User-specific Cart and Wishlist (MongoDB) ---
 CART_COLLECTION = "cart"
 WISHLIST_COLLECTION = "wishlist"
 cart_collection = db[CART_COLLECTION] if db is not None else None
@@ -200,7 +199,6 @@ class Wishlist(BaseModel):
     user_email: str
     product_ids: list[str] = []
 
-# --- Discount Strategy OOP ---
 class DiscountStrategy:
     def apply(self, total: float) -> float:
         return total
@@ -215,7 +213,6 @@ class FlatDiscount(DiscountStrategy):
     def apply(self, total: float) -> float:
         return max(0, total - self.amount)
 
-# --- Cart Endpoints ---
 @app.get("/cart", response_model=dict)
 def get_cart(user_email: str):
     if cart_collection is None:
@@ -438,7 +435,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     user = users_collection.find_one({"email": form_data.username})
     
-    if not user or not verify_password(form_data.password, product["hashed_password"]):
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
     access_token = create_access_token(data={"sub": user["email"]})
