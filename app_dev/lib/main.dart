@@ -4,6 +4,17 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import 'dart:async';
+import 'app_theme.dart';
+import 'ui_tokens.dart';
+import 'widgets/sales_banner_carousel.dart';
+import 'widgets/category_section.dart';
+import 'widgets/modern_search_bar.dart';
+import 'widgets/modern_product_card.dart';
+import 'widgets/shimmer_loader.dart';
+import 'widgets/bottom_nav_bar.dart';
+
+// Conditional import for web-only JavaScript interop
+import 'razorpay_web.dart' if (dart.library.io) 'razorpay_stub.dart' as razorpay_js;
 
 
 class Product {
@@ -83,118 +94,7 @@ void main() {
   runApp(const MyApp());
 }
 
-// Premium E-commerce Color Palette
-class AppColors {
-  static const Color primary = Color(0xFF3A5A95); // Deep Sophisticated Indigo
-  static const Color secondary = Color(0xFF007AFF); // Vibrant Tech Blue
-  static const Color accent = Color(0xFF20B2AA); // Soft Teal
-  static const Color background = Color(0xFFFAFBFC); // Light Gray
-  static const Color surface = Color(0xFFFFFFFF); // Pure White
-  static const Color surfaceVariant = Color(0xFFF8F9FA); // Very Light Gray
-  static const Color onSurface = Color(0xFF1A1A1A); // Deep Black
-  static const Color onSurfaceVariant = Color(0xFF6B7280); // Medium Gray
-  static const Color error = Color(0xFFEF4444); // Modern Red
-  static const Color success = Color(0xFF10B981); // Modern Green
-  static const Color warning = Color(0xFFF59E0B); // Modern Orange
-  static const Color info = Color(0xFF3B82F6); // Modern Blue
-  static const Color border = Color(0xFFE5E7EB); // Light Border
-}
-
-final ThemeData appTheme = ThemeData(
-  useMaterial3: true,
-  brightness: Brightness.light,
-  fontFamily: 'Inter',
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: AppColors.primary,
-    brightness: Brightness.light,
-    primary: AppColors.primary,
-    secondary: AppColors.secondary,
-    surface: AppColors.surface,
-    background: AppColors.background,
-    error: AppColors.error,
-  ),
-  scaffoldBackgroundColor: AppColors.background,
-  cardTheme: CardThemeData(
-    color: AppColors.surface,
-    elevation: 2,
-    shadowColor: Colors.black.withOpacity(0.05),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-  ),
-  inputDecorationTheme: InputDecorationTheme(
-    filled: true,
-    fillColor: AppColors.surface,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: AppColors.border),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: AppColors.border),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: AppColors.primary, width: 2),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-  ),
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-      elevation: 2,
-      shadowColor: AppColors.primary.withOpacity(0.2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-    ),
-  ),
-  outlinedButtonTheme: OutlinedButtonThemeData(
-    style: OutlinedButton.styleFrom(
-      foregroundColor: AppColors.primary,
-      side: BorderSide(color: AppColors.primary, width: 1.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-    ),
-  ),
-  textButtonTheme: TextButtonThemeData(
-    style: TextButton.styleFrom(
-      foregroundColor: AppColors.primary,
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-    ),
-  ),
-  iconTheme: IconThemeData(color: AppColors.onSurface),
-  appBarTheme: AppBarTheme(
-    backgroundColor: AppColors.surface,
-    elevation: 0,
-    shadowColor: Colors.black.withOpacity(0.05),
-    surfaceTintColor: Colors.transparent,
-    iconTheme: IconThemeData(color: AppColors.onSurface),
-    titleTextStyle: TextStyle(
-      color: AppColors.onSurface,
-      fontSize: 20,
-      fontWeight: FontWeight.w700,
-    ),
-  ),
-  textTheme: const TextTheme(
-    displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.onSurface),
-    displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
-    displaySmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-    headlineLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-    headlineMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-    headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-    titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-    titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.onSurface),
-    titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.onSurface),
-    bodyLarge: TextStyle(fontSize: 17, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-    bodyMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.onSurfaceVariant),
-    bodySmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.onSurfaceVariant),
-    labelLarge: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.onSurface),
-    labelMedium: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.onSurface),
-    labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.onSurface),
-  ),
-);
+// AppColors and appTheme are now imported from app_theme.dart
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -259,21 +159,25 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
-            child: Card(
-              elevation: 2,
+              child: Card(
+              elevation: UITokens.elevationSmall,
               shadowColor: Colors.black.withOpacity(0.05),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(UITokens.radiusSmall),
+              ),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(UITokens.radiusSmall),
                   color: AppColors.surface,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Product Image with Premium Price Badge
+                    // Product Image
                     ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(UITokens.radiusSmall),
+                      ),
                       child: Stack(
                         children: [
                           AspectRatio(
@@ -291,27 +195,24 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          // Premium Price Badge - Bottom Right
+                          // Price Badge - Bottom Right
                           Positioned(
-                            bottom: 8,
-                            right: 8,
+                            bottom: UITokens.spacing8,
+                            right: UITokens.spacing8,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: UITokens.spacing8,
+                                vertical: UITokens.spacing4,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.accent,
-                                borderRadius: BorderRadius.circular(6),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.accent.withOpacity(0.3),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(UITokens.radiusSmall),
+                                boxShadow: UITokens.shadowSmall,
                               ),
                               child: Text(
                                 '₹${widget.product.price.toStringAsFixed(0)}',
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: AppColors.onPrimary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12,
                                 ),
@@ -322,9 +223,9 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                       ),
                     ),
                     
-                    // Product Info - Clean Layout
+                    // Product Info
                     Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(UITokens.spacing12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -339,7 +240,7 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                               color: AppColors.onSurface,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: UITokens.spacing8),
                           
                           // Product Description
                           Text(
@@ -351,14 +252,17 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                               height: 1.4,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: UITokens.spacing8),
                           
                           // Category Badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: UITokens.spacing8,
+                              vertical: UITokens.spacing4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(UITokens.radiusSmall),
                               border: Border.all(
                                 color: AppColors.primary.withOpacity(0.2),
                                 width: 1,
@@ -369,7 +273,6 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w500,
-                                fontSize: 11,
                               ),
                             ),
                           ),
@@ -397,18 +300,31 @@ class ProductCatalog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(UITokens.spacing16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisSpacing: UITokens.spacing16,
+        mainAxisSpacing: UITokens.spacing16,
       ),
       itemCount: products.length,
       itemBuilder: (context, index) {
-        return ProductCard(
-          product: products[index],
-          onTap: onProductTap != null ? () => onProductTap!(products[index]) : null,
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 300 + (index * 30)),
+          curve: Curves.easeOut,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.scale(
+                scale: 0.8 + (value * 0.2),
+                child: ModernProductCard(
+                  product: products[index],
+                  onTap: onProductTap != null ? () => onProductTap!(products[index]) : null,
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -479,193 +395,151 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.secondary.withOpacity(0.1),
-            AppColors.accent.withOpacity(0.1),
-          ],
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // App Logo/Title
-                    Container(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [AppColors.primary, AppColors.secondary],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.shopping_bag_outlined,
-                              size: 40,
-                              color: Colors.white,
-                            ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(UITokens.spacing24),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // App Logo/Title
+                  Container(
+                    padding: const EdgeInsets.all(UITokens.spacing32),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            boxShadow: UITokens.shadowMedium,
                           ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Welcome Back',
-                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.onSurface,
-                            ),
+                          child: const Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 40,
+                            color: AppColors.onPrimary,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Sign in to continue shopping',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Login Form Card
-                    Card(
-                      elevation: 2,
-                      shadowColor: Colors.black.withOpacity(0.05),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: AppColors.surface,
                         ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Email Field
-                              Text(
-                                'Email Address',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.onSurface,
-                                ),
+                        const SizedBox(height: UITokens.spacing24),
+                        Text(
+                          'Welcome Back',
+                          style: Theme.of(context).textTheme.headlineLarge,
+                        ),
+                        const SizedBox(height: UITokens.spacing8),
+                        Text(
+                          'Sign in to continue shopping',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Login Form Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(UITokens.spacing24),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Email Field
+                            Text(
+                              'Email Address',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: UITokens.spacing8),
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.email_outlined),
+                                hintText: 'Enter your email address',
                               ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _emailController,
-                                decoration: InputDecoration(
-                                  prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
-                                  hintText: 'Enter your email address',
-                                  hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter your email';
-                                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-                                    return 'Please enter a valid email address';
-                                  }
-                                  return null;
-                                },
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Please enter your email';
+                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
+                                  return 'Please enter a valid email address';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: UITokens.spacing20),
+                            
+                            // Password Field
+                            Text(
+                              'Password',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: UITokens.spacing8),
+                            TextFormField(
+                              controller: _passwordController,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.lock_outline),
+                                hintText: 'Enter your password',
                               ),
-                              const SizedBox(height: 20),
-                              
-                              // Password Field
-                              Text(
-                                'Password',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _passwordController,
-                                decoration: InputDecoration(
-                                  prefixIcon: Icon(Icons.lock_outline, color: AppColors.primary),
-                                  hintText: 'Enter your password',
-                                  hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                                ),
-                                obscureText: true,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter your password';
-                                  if (value.length < 6) return 'Password must be at least 6 characters';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 24),
-                              
-                              // Login Button
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _login,
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text('Sign In'),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              
-                              // Sign Up Link
-                              Center(
-                                child: TextButton(
-                                  onPressed: () => Navigator.pushReplacementNamed(context, '/signup'),
-                                  child: RichText(
-                                    text: TextSpan(
-                                      style: Theme.of(context).textTheme.bodyMedium,
-                                      children: [
-                                        TextSpan(
-                                          text: "Don't have an account? ",
-                                          style: TextStyle(color: AppColors.onSurfaceVariant),
+                              obscureText: true,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Please enter your password';
+                                if (value.length < 6) return 'Password must be at least 6 characters';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: UITokens.spacing24),
+                            
+                            // Login Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _login,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.onPrimary,
                                         ),
-                                        TextSpan(
-                                          text: 'Sign Up',
-                                          style: TextStyle(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                      )
+                                    : const Text('Sign In'),
+                              ),
+                            ),
+                            const SizedBox(height: UITokens.spacing20),
+                            
+                            // Sign Up Link
+                            Center(
+                              child: TextButton(
+                                onPressed: () => Navigator.pushReplacementNamed(context, '/signup'),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    children: [
+                                      TextSpan(
+                                        text: "Don't have an account? ",
+                                      ),
+                                      TextSpan(
+                                        text: 'Sign Up',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -744,245 +618,199 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.accent.withOpacity(0.1),
-            AppColors.primary.withOpacity(0.1),
-            AppColors.secondary.withOpacity(0.1),
-          ],
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // App Logo/Title
-                    Container(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [AppColors.accent, AppColors.primary],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.accent.withOpacity(0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.person_add_outlined,
-                              size: 40,
-                              color: Colors.white,
-                            ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(UITokens.spacing24),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // App Logo/Title
+                  Container(
+                    padding: const EdgeInsets.all(UITokens.spacing32),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            boxShadow: UITokens.shadowMedium,
                           ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Join Us Today',
-                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.onSurface,
-                            ),
+                          child: const Icon(
+                            Icons.person_add_outlined,
+                            size: 40,
+                            color: AppColors.onPrimary,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Create your account to start shopping',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Signup Form Card
-                    Card(
-                      elevation: 2,
-                      shadowColor: Colors.black.withOpacity(0.05),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: AppColors.surface,
                         ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Username Field
-                              Text(
-                                'Full Name',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.onSurface,
+                        const SizedBox(height: UITokens.spacing24),
+                        Text(
+                          'Join Us Today',
+                          style: Theme.of(context).textTheme.headlineLarge,
+                        ),
+                        const SizedBox(height: UITokens.spacing8),
+                        Text(
+                          'Create your account to start shopping',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Signup Form Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(UITokens.spacing24),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Username Field
+                            Text(
+                              'Full Name',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: UITokens.spacing8),
+                            TextFormField(
+                              controller: _usernameController,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.person_outline),
+                                hintText: 'Enter your full name',
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Please enter your name';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: UITokens.spacing20),
+                            
+                            // Email Field
+                            Text(
+                              'Email Address',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: UITokens.spacing8),
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.email_outlined),
+                                hintText: 'Enter your email address',
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Please enter your email';
+                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
+                                  return 'Please enter a valid email address';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: UITokens.spacing20),
+                            
+                            // Password Field
+                            Text(
+                              'Password',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: UITokens.spacing8),
+                            TextFormField(
+                              controller: _passwordController,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.lock_outline),
+                                hintText: 'Create a strong password',
+                              ),
+                              obscureText: true,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Please enter your password';
+                                if (value.length < 6) return 'Password must be at least 6 characters';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: UITokens.spacing12),
+                            
+                            // Password Requirements
+                            Container(
+                              padding: const EdgeInsets.all(UITokens.spacing12),
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(UITokens.radiusSmall),
+                                border: Border.all(
+                                  color: AppColors.info.withOpacity(0.2),
+                                  width: 1,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _usernameController,
-                                decoration: InputDecoration(
-                                  prefixIcon: Icon(Icons.person_outline, color: AppColors.primary),
-                                  hintText: 'Enter your full name',
-                                  hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter your name';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              
-                              // Email Field
-                              Text(
-                                'Email Address',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _emailController,
-                                decoration: InputDecoration(
-                                  prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
-                                  hintText: 'Enter your email address',
-                                  hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter your email';
-                                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-                                    return 'Please enter a valid email address';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              
-                              // Password Field
-                              Text(
-                                'Password',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _passwordController,
-                                decoration: InputDecoration(
-                                  prefixIcon: Icon(Icons.lock_outline, color: AppColors.primary),
-                                  hintText: 'Create a strong password',
-                                  hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                                ),
-                                obscureText: true,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter your password';
-                                  if (value.length < 6) return 'Password must be at least 6 characters';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              
-                              // Password Requirements
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.info.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppColors.info.withOpacity(0.2),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.info_outline, size: 14, color: AppColors.info),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Password must be at least 6 characters long',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppColors.info,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.info_outline, size: 16, color: AppColors.info),
+                                  const SizedBox(width: UITokens.spacing8),
+                                  Expanded(
+                                    child: Text(
+                                      'Password must be at least 6 characters long',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppColors.info,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 24),
-                              
-                              // Sign Up Button
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _signup,
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text('Create Account'),
-                                ),
+                            ),
+                            const SizedBox(height: UITokens.spacing24),
+                            
+                            // Sign Up Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _signup,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.onPrimary,
+                                        ),
+                                      )
+                                    : const Text('Create Account'),
                               ),
-                              const SizedBox(height: 20),
-                              
-                              // Sign In Link
-                              Center(
-                                child: TextButton(
-                                  onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                                  child: RichText(
-                                    text: TextSpan(
-                                      style: Theme.of(context).textTheme.bodyMedium,
-                                      children: [
-                                        TextSpan(
-                                          text: 'Already have an account? ',
-                                          style: TextStyle(color: AppColors.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: UITokens.spacing20),
+                            
+                            // Sign In Link
+                            Center(
+                              child: TextButton(
+                                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    children: [
+                                      TextSpan(
+                                        text: 'Already have an account? ',
+                                      ),
+                                      TextSpan(
+                                        text: 'Sign In',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        TextSpan(
-                                          text: 'Sign In',
-                                          style: TextStyle(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1006,6 +834,63 @@ class _ProductListPageState extends State<ProductListPage> {
   String? _error;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  int _currentIndex = 0; // For bottom navigation
+
+  // Category definitions
+  static const List<String> _categories = [
+    'Electronics',
+    'Clothing',
+    'Groceries',
+    'Books',
+    'Sports',
+    'Home & Garden',
+    'Toys',
+  ];
+
+  // Map category names to display names
+  static const Map<String, String> _categoryDisplayNames = {
+    'Electronics': 'Electronics',
+    'Clothing': 'Clothing',
+    'Groceries': 'Groceries',
+    'Books': 'Books',
+    'Sports': 'Sports',
+    'Home & Garden': 'Home & Garden',
+    'Toys': 'Toys',
+  };
+
+  // Map category names to icons
+  static const Map<String, IconData> _categoryIcons = {
+    'Electronics': Icons.devices,
+    'Clothing': Icons.checkroom,
+    'Groceries': Icons.shopping_basket,
+    'Books': Icons.menu_book,
+    'Sports': Icons.sports_soccer,
+    'Home & Garden': Icons.home,
+    'Toys': Icons.toys,
+  };
+
+  // Group products by category
+  Map<String, List<Product>> _groupProductsByCategory() {
+    final Map<String, List<Product>> grouped = {};
+    for (final product in _products) {
+      final category = product.category.trim();
+      // Normalize category name
+      String normalizedCategory = category;
+      for (final cat in _categories) {
+        if (category.toLowerCase().contains(cat.toLowerCase()) ||
+            cat.toLowerCase().contains(category.toLowerCase())) {
+          normalizedCategory = cat;
+          break;
+        }
+      }
+      // If category doesn't match any predefined, use "Other"
+      if (!_categories.contains(normalizedCategory)) {
+        normalizedCategory = 'Other';
+      }
+      grouped.putIfAbsent(normalizedCategory, () => []).add(product);
+    }
+    return grouped;
+  }
 
   @override
   void initState() {
@@ -1112,6 +997,99 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
+  Widget _buildCategorizedView() {
+    final groupedProducts = _groupProductsByCategory();
+    final orderedCategories = _categories.where((cat) => groupedProducts.containsKey(cat)).toList();
+    
+    // Add "Other" category if it exists
+    if (groupedProducts.containsKey('Other')) {
+      orderedCategories.add('Other');
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: UITokens.spacing16),
+      children: [
+        // Sales Banner Carousel
+        const Padding(
+          padding: EdgeInsets.only(top: UITokens.spacing16),
+          child: SalesBannerCarousel(),
+        ),
+        const SizedBox(height: UITokens.spacing24),
+        
+        // Category Sections
+        if (orderedCategories.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(UITokens.spacing24),
+            child: Center(
+              child: Text(
+                'No products available',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          )
+        else
+          ...orderedCategories.map((category) {
+            return CategorySection(
+              categoryName: _categoryDisplayNames[category] ?? category,
+              products: groupedProducts[category] ?? [],
+              onProductTap: _openProductDetail,
+              icon: _categoryIcons[category] ?? Icons.category,
+            );
+          }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildProductGrid() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(UITokens.spacing16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: UITokens.spacing16,
+        mainAxisSpacing: UITokens.spacing16,
+      ),
+      itemCount: _products.length,
+      itemBuilder: (context, index) {
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 300 + (index * 30)),
+          curve: Curves.easeOut,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.scale(
+                scale: 0.8 + (value * 0.2),
+                child: ModernProductCard(
+                  product: _products[index],
+                  onTap: () => _openProductDetail(_products[index]),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildShimmerLoader() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(UITokens.spacing16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: UITokens.spacing16,
+        mainAxisSpacing: UITokens.spacing16,
+      ),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return const ProductCardShimmer();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1119,20 +1097,21 @@ class _ProductListPageState extends State<ProductListPage> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withOpacity(0.05),
         surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.onSurface),
+        automaticallyImplyLeading: false, // Remove drawer icon
+        iconTheme: const IconThemeData(color: AppColors.onSurface, size: 24),
         title: Row(
           children: [
-            // App Logo
+            // App Logo with enhanced styling
             Container(
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
+                  colors: [AppColors.primary, AppColors.primaryDark],
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(UITokens.radiusMedium),
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.primary.withOpacity(0.3),
@@ -1142,41 +1121,36 @@ class _ProductListPageState extends State<ProductListPage> {
                 ],
               ),
               child: const Icon(
-                Icons.shopping_bag_outlined,
-                color: Colors.white,
-                size: 20,
+                Icons.shopping_bag_rounded,
+                color: AppColors.onPrimary,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: UITokens.spacing12),
             Text(
               'Adiana',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: AppColors.onSurface,
+                letterSpacing: -0.5,
               ),
             ),
             const Spacer(),
-            // Search Bar
-            Container(
-              width: 200,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: TextField(
+            // Modern Search Bar
+            SizedBox(
+              width: 220,
+              child: ModernSearchBar(
                 controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search products...',
-                  hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  prefixIcon: Icon(Icons.search, color: AppColors.primary, size: 20),
-                ),
+                hintText: 'Search products...',
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                  if (value.isEmpty) {
+                    _fetchProducts();
+                  } else {
+                    _searchProducts(value);
+                  }
+                },
               ),
             ),
           ],
@@ -1238,114 +1212,6 @@ class _ProductListPageState extends State<ProductListPage> {
           ),
         ],
       ),
-      drawer: Drawer(
-        backgroundColor: AppColors.surface,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            // Header
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primary, AppColors.secondary],
-                ),
-              ),
-              child: DrawerHeader(
-                decoration: const BoxDecoration(color: Colors.transparent),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      child: Icon(
-                        Icons.person_outline,
-                        size: 30,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Welcome to Adiana',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Discover amazing products',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // Menu Items
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                children: [
-                  _buildDrawerItem(
-                    icon: Icons.home_outlined,
-                    title: 'Home',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, '/products');
-                    },
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.shopping_cart_outlined,
-                    title: 'Your Cart',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const CartScreen()),
-                      );
-                    },
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.favorite_outline,
-                    title: 'Your Wishlist',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const WishlistScreen()),
-                      );
-                    },
-                  ),
-                  const Divider(height: 32),
-                  _buildDrawerItem(
-                    icon: Icons.login_outlined,
-                    title: 'Sign In',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, '/login');
-                    },
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.person_add_outlined,
-                    title: 'Sign Up',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, '/signup');
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
       body: Column(
         children: [
           // Search Results Header
@@ -1378,32 +1244,7 @@ class _ProductListPageState extends State<ProductListPage> {
           // Products Grid
           Expanded(
             child: _isLoading
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                            strokeWidth: 3,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Loading amazing products...',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildShimmerLoader()
                 : _error != null
                     ? Center(
                         child: Column(
@@ -1502,70 +1343,139 @@ class _ProductListPageState extends State<ProductListPage> {
                               ],
                             ),
                           )
-                        : ProductCatalog(
-                            products: _products,
-                            onProductTap: _openProductDetail,
-                          ),
+                        : _searchQuery.isNotEmpty
+                            // Show search results in grid
+                            ? _buildProductGrid()
+                            // Show categorized products with banner
+                            : _buildCategorizedView(),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _handleBottomNavTap(index);
+        },
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.onSurfaceVariant,
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        ),
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart_outlined),
+            activeIcon: Icon(Icons.shopping_cart_rounded),
+            label: 'Cart',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_outline),
+            activeIcon: Icon(Icons.favorite_rounded),
+            label: 'Wishlist',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_bag_outlined),
+            activeIcon: Icon(Icons.shopping_bag_rounded),
+            label: 'Orders',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDrawerItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            color: AppColors.primary,
-            size: 20,
-          ),
-        ),
-        title: Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.onSurface,
-          ),
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        hoverColor: AppColors.primary.withOpacity(0.1),
-      ),
-    );
+  void _handleBottomNavTap(int index) {
+    switch (index) {
+      case 0: // Home
+        // Already on home page, just reset to first tab
+        if (Navigator.canPop(context)) {
+          Navigator.popUntil(context, (route) => route.isFirst);
+        }
+        break;
+      case 1: // Cart
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CartScreen()),
+        ).then((_) {
+          // Reset to home when coming back
+          setState(() => _currentIndex = 0);
+        });
+        break;
+      case 2: // Wishlist
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WishlistScreen()),
+        ).then((_) {
+          // Reset to home when coming back
+          setState(() => _currentIndex = 0);
+        });
+        break;
+      case 3: // Orders
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const OrdersPage()),
+        ).then((_) {
+          // Reset to home when coming back
+          setState(() => _currentIndex = 0);
+        });
+        break;
+    }
   }
+}
 
-  Widget _buildCategoryChip(String label, bool isSelected) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? AppColors.primary : AppColors.border,
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : AppColors.onSurface,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
+// Helper function for bottom navigation
+void _handleBottomNav(BuildContext context, int index) {
+  switch (index) {
+    case 0: // Home
+      Navigator.popUntil(context, (route) => route.isFirst);
+      break;
+    case 1: // Cart
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CartScreen()),
+      );
+      break;
+    case 2: // Wishlist
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WishlistScreen()),
+      );
+      break;
+    case 3: // Orders
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const OrdersPage()),
+      );
+      break;
   }
 }
 
@@ -1671,6 +1581,29 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         setState(() { _inWishlist = true; });
       }
     }
+  }
+
+  Future<void> _handleBuyNow() async {
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please log in first')));
+      return;
+    }
+    if (_quantity > widget.product.inStock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Only ${widget.product.inStock} items available in stock'))
+      );
+      return;
+    }
+    // Navigate to checkout page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutPage(
+          product: widget.product,
+          quantity: _quantity,
+        ),
+      ),
+    );
   }
 
   @override
@@ -2077,56 +2010,86 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ],
           ),
           child: SafeArea(
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _toggleWishlist,
-                    icon: Icon(
-                      _inWishlist ? Icons.favorite : Icons.favorite_border,
-                      color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
-                    ),
-                    label: Text(
-                      _inWishlist ? 'Wishlisted' : 'Wishlist',
-                      style: TextStyle(
-                        color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _toggleWishlist,
+                        icon: Icon(
+                          _inWishlist ? Icons.favorite : Icons.favorite_border,
+                          color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
+                        ),
+                        label: Text(
+                          _inWishlist ? 'Wishlisted' : 'Wishlist',
+                          style: TextStyle(
+                            color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: _inWishlist ? AppColors.error : AppColors.border,
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                        color: _inWishlist ? AppColors.error : AppColors.border,
-                        width: 1.5,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: _toggleCart,
+                        icon: Icon(
+                          _inCart ? Icons.shopping_cart : Icons.add_shopping_cart,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          _inCart ? 'In Cart' : 'Add to Cart',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _inCart ? AppColors.success : AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shadowColor: (_inCart ? AppColors.success : AppColors.primary).withOpacity(0.2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
+                const SizedBox(height: 12),
+                // Buy Now Button - Full Width
+                SizedBox(
+                  width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _toggleCart,
-                    icon: Icon(
-                      _inCart ? Icons.shopping_cart : Icons.add_shopping_cart,
-                      color: Colors.white,
-                    ),
-                    label: Text(
-                      _inCart ? 'In Cart' : 'Add to Cart',
-                      style: const TextStyle(
+                    onPressed: () => _handleBuyNow(),
+                    icon: const Icon(Icons.shopping_bag, color: Colors.white),
+                    label: const Text(
+                      'Buy Now',
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                        fontSize: 18,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _inCart ? AppColors.success : AppColors.primary,
+                      backgroundColor: AppColors.accent,
                       foregroundColor: Colors.white,
-                      elevation: 2,
-                      shadowColor: (_inCart ? AppColors.success : AppColors.primary).withOpacity(0.2),
+                      elevation: 4,
+                      shadowColor: AppColors.accent.withOpacity(0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),
@@ -2536,73 +2499,88 @@ class _CartScreenState extends State<CartScreen> {
                           );
                         },
                       ),
-        bottomNavigationBar: _items.isEmpty
-            ? null
-            : Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, -5),
+        bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!_items.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    FutureBuilder<http.Response>(
+                      future: http.get(Uri.parse('${getBackendUrl()}/cart/total?user_email=$currentUserEmail')),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return Text(
+                            'Total: ...',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                          );
+                        }
+                        try {
+                          final json = jsonDecode(snapshot.data!.body);
+                          return Text(
+                            'Total: ₹${(json['total'] ?? 0).toStringAsFixed(0)}',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                          );
+                        } catch (_) {
+                          return Text(
+                            'Total: --',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _items.isEmpty ? null : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CartCheckoutPage(cartItems: _items),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.payment),
+                      label: Text('Checkout'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 8,
+                        shadowColor: AppColors.accent.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      ),
                     ),
                   ],
                 ),
-                child: SafeArea(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      FutureBuilder<http.Response>(
-                        future: http.get(Uri.parse('${getBackendUrl()}/cart/total?user_email=$currentUserEmail')),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return Text(
-                              'Total: ...',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.onSurface,
-                              ),
-                            );
-                          }
-                          try {
-                            final json = jsonDecode(snapshot.data!.body);
-                            return Text(
-                              'Total: ₹${(json['total'] ?? 0).toStringAsFixed(0)}',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.onSurface,
-                              ),
-                            );
-                          } catch (_) {
-                            return Text(
-                              'Total: --',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.onSurface,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: Icon(Icons.payment),
-                        label: Text('Checkout'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.white,
-                          elevation: 8,
-                          shadowColor: AppColors.accent.withOpacity(0.3),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
+            ),
+          AppBottomNavBar(
+            currentIndex: 1, // Cart
+            onTap: (index) => _handleBottomNav(context, index),
+          ),
+        ],
+      ),
       ),
     );
   }
@@ -2907,7 +2885,1440 @@ class _WishlistScreenState extends State<WishlistScreen> {
                           );
                         },
                       ),
+        bottomNavigationBar: AppBottomNavBar(
+          currentIndex: 2, // Wishlist
+          onTap: (index) => _handleBottomNav(context, index),
+        ),
       ),
     );
   }
 }
+
+// ========== CHECKOUT PAGE ==========
+class CheckoutPage extends StatefulWidget {
+  final Product product;
+  final int quantity;
+  
+  const CheckoutPage({Key? key, required this.product, required this.quantity}) : super(key: key);
+
+  @override
+  State<CheckoutPage> createState() => _CheckoutPageState();
+}
+
+class _CheckoutPageState extends State<CheckoutPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _address1Controller = TextEditingController();
+  final _address2Controller = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _postalCodeController = TextEditingController();
+  bool _isProcessing = false;
+
+  String getBackendUrl() {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000';
+    } else {
+      return 'http://localhost:8000';
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _address1Controller.dispose();
+    _address2Controller.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _postalCodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handlePaymentSuccess({
+    required BuildContext context,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    required String orderId,
+  }) async {
+    try {
+      final verifyResponse = await http.post(
+        Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'razorpay_order_id': razorpayOrderId,
+          'razorpay_payment_id': razorpayPaymentId,
+          'razorpay_signature': razorpaySignature,
+          'order_id': orderId,
+        }),
+      );
+
+      if (verifyResponse.statusCode == 200 && mounted) {
+        setState(() => _isProcessing = false);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentSuccessPage(orderId: orderId),
+          ),
+        );
+      } else {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment verification failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error verifying payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openRazorpayCheckout({
+    required BuildContext context,
+    required String keyId,
+    required String orderId,
+    required double amount,
+    required String orderIdForVerification,
+  }) async {
+    if (!kIsWeb) return;
+
+    try {
+      // Convert amount to paise (multiply by 100)
+      final amountInPaise = (amount * 100).toInt();
+
+      // Create Razorpay options
+      final options = razorpay_js.RazorpayJS.createOptions({
+        'key': keyId,
+        'amount': amountInPaise,
+        'currency': 'INR',
+        'name': 'Adiana',
+        'description': 'Order Payment',
+        'order_id': orderId,
+        'handler': razorpay_js.RazorpayJS.allowInterop((response) {
+          // Payment successful - handle asynchronously
+          _handlePaymentSuccess(
+            context: context,
+            razorpayOrderId: response['razorpay_order_id']?.toString() ?? '',
+            razorpayPaymentId: response['razorpay_payment_id']?.toString() ?? '',
+            razorpaySignature: response['razorpay_signature']?.toString() ?? '',
+            orderId: orderIdForVerification,
+          );
+        }),
+        'prefill': {
+          'name': _nameController.text,
+          'email': currentUserEmail ?? '',
+          'contact': _phoneController.text,
+        },
+        'theme': {
+          'color': '#4A90E2',
+        },
+        'modal': {
+          'ondismiss': razorpay_js.RazorpayJS.allowInterop(() {
+            // User closed the payment dialog
+            if (mounted) {
+              setState(() => _isProcessing = false);
+            }
+          }),
+        },
+      });
+
+      // Wait a bit for Razorpay script to load if needed
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Get Razorpay from window
+      final razorpay = razorpay_js.RazorpayJS.getRazorpayFromContext();
+      if (razorpay == null) {
+        throw Exception('Razorpay script not loaded. Please refresh the page.');
+      }
+
+      // Create and open Razorpay instance
+      final razorpayInstance = razorpay_js.RazorpayJS.createRazorpayInstance(razorpay, [options]);
+      razorpayInstance.callMethod('open');
+      
+      // Note: _isProcessing will be set to false in the handler or on dismiss
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening payment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _processPayment() async {
+    print('_processPayment called'); // Debug: Check if method is being called
+    
+    // Check if user is logged in
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in first')),
+      );
+      return;
+    }
+
+    // Validate form
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields')),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final totalAmount = widget.product.price * widget.quantity;
+
+      // Step 1: Create order in database
+      final orderResponse = await http.post(
+        Uri.parse('${getBackendUrl()}/orders/create'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_email': currentUserEmail,
+          'items': [
+            {
+              'product_id': widget.product.id,
+              'product_name': widget.product.name,
+              'quantity': widget.quantity,
+              'price': widget.product.price,
+              'image_url': widget.product.imageUrl,
+            }
+          ],
+          'shipping_address': {
+            'full_name': _nameController.text,
+            'phone': _phoneController.text,
+            'address_line1': _address1Controller.text,
+            'address_line2': _address2Controller.text.isEmpty ? null : _address2Controller.text,
+            'city': _cityController.text,
+            'state': _stateController.text,
+            'postal_code': _postalCodeController.text,
+            'country': 'India',
+          },
+          'total_amount': totalAmount,
+          'payment_method': 'razorpay',
+        }),
+      );
+
+      if (orderResponse.statusCode != 200) {
+        throw Exception('Failed to create order');
+      }
+
+      final orderData = jsonDecode(orderResponse.body);
+      final orderId = orderData['order']['order_id'];
+
+      // Step 2: Create Razorpay order
+      final razorpayOrderResponse = await http.post(
+        Uri.parse('${getBackendUrl()}/orders/create-razorpay-order'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': totalAmount,
+          'currency': 'INR',
+          'receipt': orderId,
+          'user_email': currentUserEmail,
+        }),
+      );
+
+      if (razorpayOrderResponse.statusCode != 200) {
+        throw Exception('Failed to create payment order');
+      }
+
+      final razorpayData = jsonDecode(razorpayOrderResponse.body);
+      final razorpayOrderId = razorpayData['order_id'];
+      final razorpayKeyId = razorpayData['key_id'];
+
+      // Step 3: Open Razorpay Checkout
+      if (kIsWeb) {
+        // Use Razorpay Checkout for web
+        if (razorpayKeyId == 'demo_key_id') {
+          // Demo mode - simulate payment
+          await Future.delayed(const Duration(seconds: 2));
+          final verifyResponse = await http.post(
+            Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'razorpay_order_id': razorpayOrderId,
+              'razorpay_payment_id': 'pay_demo_${DateTime.now().millisecondsSinceEpoch}',
+              'razorpay_signature': 'demo_signature_${DateTime.now().millisecondsSinceEpoch}',
+              'order_id': orderId,
+            }),
+          );
+          if (verifyResponse.statusCode == 200 && mounted) {
+            setState(() => _isProcessing = false);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentSuccessPage(orderId: orderId),
+              ),
+            );
+          }
+        } else {
+          // Real Razorpay integration
+          await _openRazorpayCheckout(
+            context: context,
+            keyId: razorpayKeyId,
+            orderId: razorpayOrderId,
+            amount: totalAmount,
+            orderIdForVerification: orderId,
+          );
+        }
+      } else {
+        // For mobile, use Razorpay Flutter SDK
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mobile: Install Razorpay Flutter SDK for payment integration'),
+          ),
+        );
+        setState(() => _isProcessing = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        print('Payment processing error: $e'); // Debug output
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalAmount = widget.product.price * widget.quantity;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Checkout'),
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.onSurface,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Order Summary Card
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order Summary',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              widget.product.imageUrl,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 60,
+                                height: 60,
+                                color: AppColors.surfaceVariant,
+                                child: const Icon(Icons.image),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.product.name,
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Quantity: ${widget.quantity}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '₹${(widget.product.price * widget.quantity).toStringAsFixed(2)}',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '₹${totalAmount.toStringAsFixed(2)}',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Shipping Address Form
+              Text(
+                'Shipping Address',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name *',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter your name' : null,
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return 'Please enter phone number';
+                  if (value!.length < 10) return 'Please enter valid phone number';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _address1Controller,
+                decoration: const InputDecoration(
+                  labelText: 'Address Line 1 *',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter address' : null,
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _address2Controller,
+                decoration: const InputDecoration(
+                  labelText: 'Address Line 2 (Optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cityController,
+                      decoration: const InputDecoration(
+                        labelText: 'City *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Please enter city' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stateController,
+                      decoration: const InputDecoration(
+                        labelText: 'State *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Please enter state' : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _postalCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Postal Code *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return 'Please enter postal code';
+                  if (value!.length < 6) return 'Please enter valid postal code';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 32),
+              
+              // Proceed to Payment Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isProcessing ? null : _processPayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Proceed to Payment',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ========== CART CHECKOUT PAGE ==========
+class CartCheckoutPage extends StatefulWidget {
+  final List<dynamic> cartItems;
+  
+  const CartCheckoutPage({Key? key, required this.cartItems}) : super(key: key);
+
+  @override
+  State<CartCheckoutPage> createState() => _CartCheckoutPageState();
+}
+
+class _CartCheckoutPageState extends State<CartCheckoutPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _address1Controller = TextEditingController();
+  final _address2Controller = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _postalCodeController = TextEditingController();
+  bool _isProcessing = false;
+
+  String getBackendUrl() {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000';
+    } else {
+      return 'http://localhost:8000';
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _address1Controller.dispose();
+    _address2Controller.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _postalCodeController.dispose();
+    super.dispose();
+  }
+
+  double _calculateTotal() {
+    double total = 0.0;
+    for (var item in widget.cartItems) {
+      final product = item['product'];
+      final quantity = item['quantity'];
+      total += (product['price'] ?? 0.0) * (quantity ?? 1);
+    }
+    return total;
+  }
+
+  Future<void> _handlePaymentSuccess({
+    required BuildContext context,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    required String orderId,
+  }) async {
+    try {
+      final verifyResponse = await http.post(
+        Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'razorpay_order_id': razorpayOrderId,
+          'razorpay_payment_id': razorpayPaymentId,
+          'razorpay_signature': razorpaySignature,
+          'order_id': orderId,
+        }),
+      );
+
+      if (verifyResponse.statusCode == 200 && mounted) {
+        setState(() => _isProcessing = false);
+        // Clear cart after successful payment
+        try {
+          await http.post(
+            Uri.parse('${getBackendUrl()}/cart/clear'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_email': currentUserEmail}),
+          );
+        } catch (_) {}
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentSuccessPage(orderId: orderId),
+          ),
+        );
+      } else {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment verification failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error verifying payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openRazorpayCheckout({
+    required BuildContext context,
+    required String keyId,
+    required String orderId,
+    required double amount,
+    required String orderIdForVerification,
+  }) async {
+    if (!kIsWeb) return;
+
+    try {
+      final amountInPaise = (amount * 100).toInt();
+      final options = razorpay_js.RazorpayJS.createOptions({
+        'key': keyId,
+        'amount': amountInPaise,
+        'currency': 'INR',
+        'name': 'Adiana',
+        'description': 'Cart Order Payment',
+        'order_id': orderId,
+        'handler': razorpay_js.RazorpayJS.allowInterop((response) {
+          _handlePaymentSuccess(
+            context: context,
+            razorpayOrderId: response['razorpay_order_id']?.toString() ?? '',
+            razorpayPaymentId: response['razorpay_payment_id']?.toString() ?? '',
+            razorpaySignature: response['razorpay_signature']?.toString() ?? '',
+            orderId: orderIdForVerification,
+          );
+        }),
+        'prefill': {
+          'name': _nameController.text,
+          'email': currentUserEmail ?? '',
+          'contact': _phoneController.text,
+        },
+        'theme': {
+          'color': '#4A90E2',
+        },
+        'modal': {
+          'ondismiss': razorpay_js.RazorpayJS.allowInterop(() {
+            if (mounted) {
+              setState(() => _isProcessing = false);
+            }
+          }),
+        },
+      });
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      final razorpay = razorpay_js.RazorpayJS.getRazorpayFromContext();
+      if (razorpay == null) {
+        throw Exception('Razorpay script not loaded. Please refresh the page.');
+      }
+      final razorpayInstance = razorpay_js.RazorpayJS.createRazorpayInstance(razorpay, [options]);
+      razorpayInstance.callMethod('open');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening payment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _processPayment() async {
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in first')),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields')),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final totalAmount = _calculateTotal();
+
+      // Prepare order items from cart
+      final orderItems = widget.cartItems.map((item) {
+        final product = item['product'];
+        return {
+          'product_id': product['_id'],
+          'product_name': product['name'],
+          'quantity': item['quantity'],
+          'price': product['price'],
+          'image_url': product['image_url'],
+        };
+      }).toList();
+
+      // Step 1: Create order in database
+      final orderResponse = await http.post(
+        Uri.parse('${getBackendUrl()}/orders/create'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_email': currentUserEmail,
+          'items': orderItems,
+          'shipping_address': {
+            'full_name': _nameController.text,
+            'phone': _phoneController.text,
+            'address_line1': _address1Controller.text,
+            'address_line2': _address2Controller.text.isEmpty ? null : _address2Controller.text,
+            'city': _cityController.text,
+            'state': _stateController.text,
+            'postal_code': _postalCodeController.text,
+            'country': 'India',
+          },
+          'total_amount': totalAmount,
+          'payment_method': 'razorpay',
+        }),
+      );
+
+      if (orderResponse.statusCode != 200) {
+        throw Exception('Failed to create order');
+      }
+
+      final orderData = jsonDecode(orderResponse.body);
+      final orderId = orderData['order']['order_id'];
+
+      // Step 2: Create Razorpay order
+      final razorpayOrderResponse = await http.post(
+        Uri.parse('${getBackendUrl()}/orders/create-razorpay-order'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': totalAmount,
+          'currency': 'INR',
+          'receipt': orderId,
+          'user_email': currentUserEmail,
+        }),
+      );
+
+      if (razorpayOrderResponse.statusCode != 200) {
+        throw Exception('Failed to create payment order');
+      }
+
+      final razorpayData = jsonDecode(razorpayOrderResponse.body);
+      final razorpayOrderId = razorpayData['order_id'];
+      final razorpayKeyId = razorpayData['key_id'];
+
+      // Step 3: Open Razorpay Checkout
+      if (kIsWeb) {
+        if (razorpayKeyId == 'demo_key_id') {
+          await Future.delayed(const Duration(seconds: 2));
+          final verifyResponse = await http.post(
+            Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'razorpay_order_id': razorpayOrderId,
+              'razorpay_payment_id': 'pay_demo_${DateTime.now().millisecondsSinceEpoch}',
+              'razorpay_signature': 'demo_signature_${DateTime.now().millisecondsSinceEpoch}',
+              'order_id': orderId,
+            }),
+          );
+          if (verifyResponse.statusCode == 200 && mounted) {
+            setState(() => _isProcessing = false);
+            try {
+              await http.post(
+                Uri.parse('${getBackendUrl()}/cart/clear'),
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({'user_email': currentUserEmail}),
+              );
+            } catch (_) {}
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentSuccessPage(orderId: orderId),
+              ),
+            );
+          }
+        } else {
+          await _openRazorpayCheckout(
+            context: context,
+            keyId: razorpayKeyId,
+            orderId: razorpayOrderId,
+            amount: totalAmount,
+            orderIdForVerification: orderId,
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mobile: Install Razorpay Flutter SDK for payment integration'),
+          ),
+        );
+        setState(() => _isProcessing = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalAmount = _calculateTotal();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Checkout'),
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.onSurface,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(UITokens.spacing16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Order Summary Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(UITokens.spacing16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order Summary',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: UITokens.spacing16),
+                      ...widget.cartItems.map((item) {
+                        final product = item['product'];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: UITokens.spacing12),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(UITokens.radiusSmall),
+                                child: Image.network(
+                                  product['image_url'] ?? '',
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 60,
+                                    height: 60,
+                                    color: AppColors.surfaceVariant,
+                                    child: const Icon(Icons.image),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: UITokens.spacing12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product['name'] ?? '',
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Qty: ${item['quantity']}',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '₹${((product['price'] ?? 0) * (item['quantity'] ?? 1)).toStringAsFixed(2)}',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      const Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '₹${totalAmount.toStringAsFixed(2)}',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: UITokens.spacing24),
+              
+              // Shipping Address Form
+              Text(
+                'Shipping Address',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: UITokens.spacing16),
+              
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name *',
+                ),
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter your name' : null,
+              ),
+              const SizedBox(height: UITokens.spacing16),
+              
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number *',
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return 'Please enter phone number';
+                  if (value!.length < 10) return 'Please enter valid phone number';
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+              
+              TextFormField(
+                controller: _address1Controller,
+                decoration: const InputDecoration(
+                  labelText: 'Address Line 1 *',
+                ),
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter address' : null,
+              ),
+              const SizedBox(height: UITokens.spacing16),
+              
+              TextFormField(
+                controller: _address2Controller,
+                decoration: const InputDecoration(
+                  labelText: 'Address Line 2 (Optional)',
+                ),
+              ),
+              const SizedBox(height: UITokens.spacing16),
+              
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cityController,
+                      decoration: const InputDecoration(
+                        labelText: 'City *',
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Please enter city' : null,
+                    ),
+                  ),
+                  const SizedBox(width: UITokens.spacing16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stateController,
+                      decoration: const InputDecoration(
+                        labelText: 'State *',
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Please enter state' : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UITokens.spacing16),
+              
+              TextFormField(
+                controller: _postalCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Postal Code *',
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return 'Please enter postal code';
+                  if (value!.length < 6) return 'Please enter valid postal code';
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing32),
+              
+              // Proceed to Payment Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isProcessing ? null : _processPayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: UITokens.spacing16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UITokens.radiusSmall)),
+                  ),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Proceed to Payment',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ========== PAYMENT SUCCESS PAGE ==========
+class PaymentSuccessPage extends StatelessWidget {
+  final String orderId;
+  
+  const PaymentSuccessPage({Key? key, required this.orderId}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_circle,
+                  size: 80,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Payment Successful!',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your order has been placed successfully',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Order ID: $orderId',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text('Continue Shopping'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ========== ORDERS PAGE ==========
+class OrdersPage extends StatefulWidget {
+  const OrdersPage({Key? key}) : super(key: key);
+
+  @override
+  State<OrdersPage> createState() => _OrdersPageState();
+}
+
+class _OrdersPageState extends State<OrdersPage> {
+  List<dynamic> _orders = [];
+  bool _isLoading = true;
+  String? _error;
+
+  String getBackendUrl() {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000';
+    } else {
+      return 'http://localhost:8000';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOrders();
+  }
+
+  Future<void> _fetchOrders() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('${getBackendUrl()}/orders?user_email=$currentUserEmail'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _orders = data['orders'] ?? [];
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load orders';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return AppColors.success;
+      case 'pending':
+        return Colors.orange;
+      case 'cancelled':
+        return AppColors.error;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Your Orders'),
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.onSurface,
+      ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                      const SizedBox(height: 16),
+                      Text(_error!),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _fetchOrders,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : _orders.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shopping_bag_outlined, size: 64, color: AppColors.onSurfaceVariant),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No orders yet',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Start shopping to see your orders here',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchOrders,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _orders.length,
+                        itemBuilder: (context, index) {
+                          final order = _orders[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: ExpansionTile(
+                              title: Text(
+                                'Order #${order['order_id']}',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '₹${(order['total_amount'] ?? 0).toStringAsFixed(2)}',
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _getStatusColor(order['status'] ?? 'pending').withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      order['status'] ?? 'pending',
+                                      style: TextStyle(
+                                        color: _getStatusColor(order['status'] ?? 'pending'),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Items',
+                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ...((order['items'] as List?) ?? []).map((item) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 8),
+                                        child: Row(
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Image.network(
+                                                item['image_url'] ?? '',
+                                                width: 50,
+                                                height: 50,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => Container(
+                                                  width: 50,
+                                                  height: 50,
+                                                  color: AppColors.surfaceVariant,
+                                                  child: const Icon(Icons.image, size: 24),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    item['product_name'] ?? '',
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                  Text(
+                                                    'Qty: ${item['quantity']} × ₹${(item['price'] ?? 0).toStringAsFixed(2)}',
+                                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                      color: AppColors.onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
+                                      const Divider(),
+                                      if (order['shipping_address'] != null) ...[
+                                        Text(
+                                          'Shipping Address',
+                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '${order['shipping_address']['full_name']}\n'
+                                          '${order['shipping_address']['address_line1']}\n'
+                                          '${order['shipping_address']['address_line2'] != null ? "${order['shipping_address']['address_line2']}\n" : ""}'
+                                          '${order['shipping_address']['city']}, ${order['shipping_address']['state']} ${order['shipping_address']['postal_code']}',
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      Text(
+                                        'Order Date: ${DateTime.parse(order['created_at'] ?? DateTime.now().toIso8601String()).toString().substring(0, 16)}',
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: 3, // Orders
+        onTap: (index) => _handleBottomNav(context, index),
+      ),
+    );
+  }
+}
+
