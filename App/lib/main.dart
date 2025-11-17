@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import 'dart:async';
@@ -862,24 +863,24 @@ class _ProductListPageState extends State<ProductListPage> {
     'Toys': Icons.toys,
   };
 
+  String _normalizeCategoryName(String category) {
+    final trimmed = category.trim();
+    if (trimmed.isEmpty) return 'Other';
+    final lower = trimmed.toLowerCase();
+    for (final cat in _categories) {
+      final catLower = cat.toLowerCase();
+      if (lower.contains(catLower) || catLower.contains(lower)) {
+        return cat;
+      }
+    }
+    return 'Other';
+  }
+
   // Group products by category
   Map<String, List<Product>> _groupProductsByCategory() {
     final Map<String, List<Product>> grouped = {};
     for (final product in _products) {
-      final category = product.category.trim();
-      // Normalize category name
-      String normalizedCategory = category;
-      for (final cat in _categories) {
-        if (category.toLowerCase().contains(cat.toLowerCase()) ||
-            cat.toLowerCase().contains(category.toLowerCase())) {
-          normalizedCategory = cat;
-          break;
-        }
-      }
-      // If category doesn't match any predefined, use "Other"
-      if (!_categories.contains(normalizedCategory)) {
-        normalizedCategory = 'Other';
-      }
+      final normalizedCategory = _normalizeCategoryName(product.category);
       grouped.putIfAbsent(normalizedCategory, () => []).add(product);
     }
     return grouped;
@@ -981,6 +982,58 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
+  void _handleBannerShopNow(String category, double discountPercent) {
+    if (_products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Loading products. Please try again in a moment.')),
+      );
+      return;
+    }
+
+    final normalizedCategory = _normalizeCategoryName(category);
+    final matchingProducts = _products.where((product) {
+      final productCategory = _normalizeCategoryName(product.category);
+      return productCategory.toLowerCase() == normalizedCategory.toLowerCase();
+    }).toList();
+
+    if (matchingProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No deals available for $category yet.')),
+      );
+      return;
+    }
+
+    final random = Random();
+    final selectedProduct = matchingProducts[random.nextInt(matchingProducts.length)];
+    final double safeDiscount = discountPercent.clamp(0, 95).toDouble();
+    final double discountFactor = 1 - (safeDiscount / 100);
+    final double discountedPrice =
+        (selectedProduct.price * discountFactor).clamp(0, selectedProduct.price).toDouble();
+    final double roundedDiscountedPrice = double.parse(discountedPrice.toStringAsFixed(2));
+
+    final discountedProduct = Product(
+      id: selectedProduct.id,
+      name: selectedProduct.name,
+      description: selectedProduct.description,
+      price: roundedDiscountedPrice,
+      category: selectedProduct.category,
+      inStock: selectedProduct.inStock,
+      imageUrl: selectedProduct.imageUrl,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailPage(
+          product: discountedProduct,
+          promoDiscountPercent: safeDiscount.toDouble(),
+          promoOriginalPrice: selectedProduct.price,
+          promoTag: '$normalizedCategory Flash Deal',
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategorizedView() {
     final groupedProducts = _groupProductsByCategory();
     final orderedCategories = _categories.where((cat) => groupedProducts.containsKey(cat)).toList();
@@ -994,9 +1047,11 @@ class _ProductListPageState extends State<ProductListPage> {
       padding: const EdgeInsets.only(bottom: UITokens.spacing16),
       children: [
         // Sales Banner Carousel
-        const Padding(
-          padding: EdgeInsets.only(top: UITokens.spacing16),
-          child: SalesBannerCarousel(),
+        Padding(
+          padding: const EdgeInsets.only(top: UITokens.spacing16),
+          child: SalesBannerCarousel(
+            onShopNow: _handleBannerShopNow,
+          ),
         ),
         const SizedBox(height: UITokens.spacing24),
         
@@ -1315,9 +1370,33 @@ class _ProductListPageState extends State<ProductListPage> {
             title: const Text('Sell Item'),
             onTap: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sell Item feature coming soon')),
-              );
+              if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please log in first')),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SellItemPage()),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.verified_user_outlined),
+            title: const Text('Safe Selling'),
+            onTap: () {
+              Navigator.pop(context);
+              if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please log in first')),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SafeSellItemPage()),
+                );
+              }
             },
           ),
           ListTile(
@@ -1330,26 +1409,26 @@ class _ProductListPageState extends State<ProductListPage> {
               );
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('Settings'),
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon')),
-              );
-            },
-          ),
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () {
-              Navigator.pop(context);
-              currentUserEmail = null;
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-          ),
+          if (currentUserEmail == null || currentUserEmail!.isEmpty)
+            ListTile(
+              leading: const Icon(Icons.login),
+              title: const Text('Login'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+            )
+          else
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context);
+                currentUserEmail = null;
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+            ),
         ],
       ),
     );
@@ -1482,7 +1561,17 @@ void _handleBottomNav(BuildContext context, int index) {
 
 class ProductDetailPage extends StatefulWidget {
   final Product product;
-  const ProductDetailPage({Key? key, required this.product}) : super(key: key);
+  final double? promoDiscountPercent;
+  final double? promoOriginalPrice;
+  final String? promoTag;
+
+  const ProductDetailPage({
+    Key? key,
+    required this.product,
+    this.promoDiscountPercent,
+    this.promoOriginalPrice,
+    this.promoTag,
+  }) : super(key: key);
 
   @override
   State<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -1599,6 +1688,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final bool hasPromo = (widget.promoDiscountPercent ?? 0) > 0 && widget.promoOriginalPrice != null;
+    final double originalPrice = widget.promoOriginalPrice ?? product.price;
+    final double displayPrice = product.price;
+    final double savings = hasPromo ? (originalPrice - displayPrice).clamp(0, originalPrice) : 0;
+    final String formattedOriginal = originalPrice % 1 == 0
+        ? originalPrice.toStringAsFixed(0)
+        : originalPrice.toStringAsFixed(2);
+    final String formattedDisplay = displayPrice % 1 == 0
+        ? displayPrice.toStringAsFixed(0)
+        : displayPrice.toStringAsFixed(2);
     if (_loading) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -1757,6 +1856,39 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             ),
                           ),
                           const SizedBox(height: 4),
+                          if (hasPromo) ...[
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '₹$formattedOriginal',
+                                  style: TextStyle(
+                                    color: AppColors.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 18,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${widget.promoDiscountPercent!.toStringAsFixed(0)}% OFF',
+                                    style: TextStyle(
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                          ],
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1770,7 +1902,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 ),
                               ),
                               Text(
-                                product.price.toStringAsFixed(0),
+                                formattedDisplay,
                                 style: TextStyle(
                                   color: AppColors.onSurface,
                                   fontWeight: FontWeight.w700,
@@ -1781,6 +1913,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                               ),
                             ],
                           ),
+                          if (hasPromo)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                '${widget.promoTag ?? 'Limited time offer'} • You save ₹${savings.toStringAsFixed(0)}',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: AppColors.onSurfaceVariant,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -3053,7 +3196,29 @@ class _CheckoutPageState extends State<CheckoutPage> {
       );
 
       if (orderResponse.statusCode != 200) {
-        throw Exception('Failed to create order');
+        // Try to surface a meaningful backend message (e.g. safe selling pincode mismatch)
+        try {
+          final data = jsonDecode(orderResponse.body);
+          final msg = data['detail']?.toString() ?? 'Failed to create order';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(msg),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to create order'),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+        return;
       }
 
       final orderData = jsonDecode(orderResponse.body);
@@ -3123,15 +3288,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
           amount: totalAmount,
           orderIdForVerification: orderId,
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mobile: Install Razorpay Flutter SDK for payment integration'),
-          ),
-        );
-        setState(() => _isProcessing = false);
       }
     } catch (e) {
       if (mounted) {
@@ -3686,7 +3842,29 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
       );
 
       if (orderResponse.statusCode != 200) {
-        throw Exception('Failed to create order');
+        // Try to surface a meaningful backend message (e.g. safe selling pincode mismatch)
+        try {
+          final data = jsonDecode(orderResponse.body);
+          final msg = data['detail']?.toString() ?? 'Failed to create order';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(msg),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to create order'),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+        return;
       }
 
       final orderData = jsonDecode(orderResponse.body);
@@ -4768,6 +4946,552 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   ),
                 ),
+    );
+  }
+}
+
+// Sell Item Page
+class SellItemPage extends StatefulWidget {
+  const SellItemPage({Key? key}) : super(key: key);
+
+  @override
+  State<SellItemPage> createState() => _SellItemPageState();
+}
+
+class _SellItemPageState extends State<SellItemPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _priceController = TextEditingController();
+
+  bool _isSubmitting = false;
+
+  List<String> _parsePincodes(String raw) {
+    final parts = raw
+        .split(RegExp(r'[,\s]+'))
+        .map((pin) => pin.trim())
+        .where((pin) => pin.isNotEmpty)
+        .toList();
+
+    final unique = <String>[];
+    for (final pin in parts) {
+      if (!unique.contains(pin)) {
+        unique.add(pin);
+      }
+    }
+    return unique;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _imageUrlController.dispose();
+    _descriptionController.dispose();
+    _quantityController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in first')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final body = {
+        "name": _titleController.text.trim(),
+        "description": _descriptionController.text.trim(),
+        "price": double.tryParse(_priceController.text.trim()) ?? 0,
+        "quantity": int.tryParse(_quantityController.text.trim()) ?? 1,
+        "image_url": _imageUrlController.text.trim(),
+        "seller_email": currentUserEmail,
+        "status": "unsold",
+        "category": "User Listings",
+      };
+
+      final response = await http.post(
+        Uri.parse('${BackendConfig.getBackendUrl()}/selling-products'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item published successfully!')),
+        );
+        Navigator.pop(context);
+      } else {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['detail']?.toString() ?? 'Failed to publish item')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Sell an Item'),
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(UITokens.spacing24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'List a new item for sale',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: UITokens.spacing8),
+              Text(
+                'Provide clear details so buyers can discover your item easily.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: UITokens.spacing24),
+
+              // Item title
+              TextFormField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'What do you want to sell?',
+                  hintText: 'e.g. iPhone 13 Pro, Gaming Chair',
+                  prefixIcon: const Icon(Icons.title),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a title';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Photo URL
+              TextFormField(
+                controller: _imageUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Photo URL',
+                  hintText: 'https://example.com/image.jpg',
+                  prefixIcon: Icon(Icons.image_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter an image URL';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Describe the condition, features, and details of the item',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a description';
+                  }
+                  if (value.trim().length < 20) {
+                    return 'Please write at least 20 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Quantity & Price
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _quantityController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Number of items',
+                        hintText: 'e.g. 1',
+                        prefixIcon: Icon(Icons.format_list_numbered),
+                      ),
+                      validator: (value) {
+                        final qty = int.tryParse(value ?? '');
+                        if (qty == null || qty <= 0) {
+                          return 'Enter a valid quantity';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: UITokens.spacing16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Price (₹)',
+                        hintText: 'e.g. 4999',
+                        prefixIcon: Icon(Icons.currency_rupee),
+                      ),
+                      validator: (value) {
+                        final price = double.tryParse(value ?? '');
+                        if (price == null || price <= 0) {
+                          return 'Enter a valid price';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UITokens.spacing32),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: UITokens.spacing16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                    ),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Publish Item'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Safe Sell Item Page (restricted by seller pincode)
+class SafeSellItemPage extends StatefulWidget {
+  const SafeSellItemPage({Key? key}) : super(key: key);
+
+  @override
+  State<SafeSellItemPage> createState() => _SafeSellItemPageState();
+}
+
+class _SafeSellItemPageState extends State<SafeSellItemPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _pincodesController = TextEditingController();
+
+  bool _isSubmitting = false;
+
+  List<String> _parsePincodes(String raw) {
+    final parts = raw
+        .split(RegExp(r'[,\s]+'))
+        .map((pin) => pin.trim())
+        .where((pin) => pin.isNotEmpty)
+        .toList();
+
+    final unique = <String>[];
+    for (final pin in parts) {
+      if (!unique.contains(pin)) {
+        unique.add(pin);
+      }
+    }
+    return unique;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _imageUrlController.dispose();
+    _descriptionController.dispose();
+    _quantityController.dispose();
+    _priceController.dispose();
+    _pincodesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in first')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final pincodes = _parsePincodes(_pincodesController.text);
+      if (pincodes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter at least one pincode')),
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      final body = {
+        "name": _titleController.text.trim(),
+        "description": _descriptionController.text.trim(),
+        "price": double.tryParse(_priceController.text.trim()) ?? 0,
+        "quantity": int.tryParse(_quantityController.text.trim()) ?? 1,
+        "image_url": _imageUrlController.text.trim(),
+        "seller_email": currentUserEmail,
+        "status": "unsold",
+        "category": "User Listings",
+        "selling_type": "safe",
+        "seller_pincodes": pincodes,
+      };
+
+      final response = await http.post(
+        Uri.parse('${BackendConfig.getBackendUrl()}/selling-products'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Safe item published successfully!')),
+        );
+        Navigator.pop(context);
+      } else {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['detail']?.toString() ?? 'Failed to publish item')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Safe Selling'),
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(UITokens.spacing24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Sell safely within your area',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: UITokens.spacing8),
+              Text(
+                'We will only allow buyers whose pincode matches one of the pincodes you specify.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: UITokens.spacing24),
+
+              // Item title
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'What do you want to sell?',
+                  hintText: 'e.g. Sofa, Refrigerator',
+                  prefixIcon: Icon(Icons.title),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a title';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Photo URL
+              TextFormField(
+                controller: _imageUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Photo URL',
+                  hintText: 'https://example.com/image.jpg',
+                  prefixIcon: Icon(Icons.image_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter an image URL';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Describe the condition, features, and details of the item',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a description';
+                  }
+                  if (value.trim().length < 20) {
+                    return 'Please write at least 20 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Quantity & Price
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _quantityController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Number of items',
+                        hintText: 'e.g. 1',
+                        prefixIcon: Icon(Icons.format_list_numbered),
+                      ),
+                      validator: (value) {
+                        final qty = int.tryParse(value ?? '');
+                        if (qty == null || qty <= 0) {
+                          return 'Enter a valid quantity';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: UITokens.spacing16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Price (₹)',
+                        hintText: 'e.g. 4999',
+                        prefixIcon: Icon(Icons.currency_rupee),
+                      ),
+                      validator: (value) {
+                        final price = double.tryParse(value ?? '');
+                        if (price == null || price <= 0) {
+                          return 'Enter a valid price';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UITokens.spacing16),
+
+              // Seller pincode
+              TextFormField(
+                controller: _pincodesController,
+                decoration: const InputDecoration(
+                  labelText: 'Supported pincodes (max 10)',
+                  hintText: 'e.g. 560001, 560002, 560003',
+                  helperText: 'Separate multiple pincodes with commas or spaces',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+                validator: (value) {
+                  final pins = _parsePincodes(value ?? '');
+                  if (pins.isEmpty) {
+                    return 'Enter at least one pincode';
+                  }
+                  if (pins.length > 10) {
+                    return 'Maximum 10 pincodes allowed';
+                  }
+                  if (pins.any((pin) => pin.length < 4)) {
+                    return 'Each pincode must be at least 4 digits';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: UITokens.spacing32),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: UITokens.spacing16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                    ),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Publish Safe Item'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

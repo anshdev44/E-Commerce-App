@@ -33,10 +33,11 @@ products_collection = None
 cart_collection = None
 wishlist_collection = None
 orders_collection = None
+selling_products_collection = None
 
 def get_mongo_client():
     """Get or create MongoDB client with retry logic"""
-    global client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection
+    global client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection, selling_products_collection
     
     try:
         if client is None:
@@ -59,6 +60,7 @@ def get_mongo_client():
             cart_collection = db["cart"]
             wishlist_collection = db["wishlist"]
             orders_collection = db["orders"]
+            selling_products_collection = db["selling_products"]
         
         return client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection
     except Exception as e:
@@ -73,6 +75,7 @@ def get_mongo_client():
         cart_collection = None
         wishlist_collection = None
         orders_collection = None
+        selling_products_collection = None
         raise
 
 # Try initial connection
@@ -129,6 +132,21 @@ class Product(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+
+class SellingProduct(BaseModel):
+    """Model for user-listed products in the selling_products collection."""
+    name: str
+    description: str
+    price: float
+    quantity: int
+    image_url: Optional[str] = None
+    seller_email: str
+    status: str = "unsold"  # unsold, sold
+    category: Optional[str] = "User Listings"
+    selling_type: str = "normal"  # normal, safe
+    seller_pincode: Optional[str] = None  # Deprecated, kept for backward compatibility
+    seller_pincodes: Optional[List[str]] = None  # Up to 10 pincodes for safe selling
+
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
@@ -139,8 +157,9 @@ class ProductUpdate(BaseModel):
     updated_at: Optional[datetime] = None
 
 PRODUCTS_COLLECTION_NAME = "products"
+SELLER_PRODUCT_PREFIX = "seller_"
 
-def convert_product_to_dict(product_doc):
+def convert_product_to_dict(product_doc, source: str = "catalog"):
     """Convert MongoDB product document to a proper dictionary"""
     if product_doc is None:
         return None
@@ -169,16 +188,26 @@ def convert_product_to_dict(product_doc):
         image_url = ""
     
     # Build the result dictionary, ensuring all values are JSON-serializable
+    product_id = str(product_dict.get("_id", ""))
+    if source == "seller":
+        product_id = f"{SELLER_PRODUCT_PREFIX}{product_id}"
+        stock_value = int(product_dict.get("quantity", product_dict.get("in_stock", 0)))
+    else:
+        stock_value = int(product_dict.get("in_stock", product_dict.get("quantity", 0)))
+    
     result = {
-        "_id": str(product_dict.get("_id", "")),
+        "_id": product_id,
         "name": str(product_dict.get("name", "")),
         "description": str(product_dict.get("description", "")),
         "price": float(product_dict.get("price", 0.0)),
         "category": str(product_dict.get("category", "")),
-        "in_stock": int(product_dict.get("in_stock", 0)),
+        "in_stock": stock_value,
         "image_url": str(image_url),  # Explicitly convert to string
         "created_at": product_dict.get("created_at"),
-        "updated_at": product_dict.get("updated_at")
+        "updated_at": product_dict.get("updated_at"),
+        "source": source,
+        "seller_email": product_dict.get("seller_email"),
+        "status": product_dict.get("status", "unsold" if source == "seller" else product_dict.get("status", "active")),
     }
     
     return result
@@ -758,7 +787,7 @@ def update_user_profile(email: str, profile_data: dict = Body(...)):
 @app.post("/products", response_model=dict)
 def create_product(product: Product):
     try:
-        _, _, _, products_collection, _, _, _ = get_mongo_client()
+        client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection = get_mongo_client()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     now = datetime.utcnow()
@@ -775,13 +804,116 @@ def create_product(product: Product):
 @app.get("/products", response_model=dict)
 def list_products(skip: int = 0, limit: int = 20):
     try:
-        _, _, _, products_collection, _, _, _ = get_mongo_client()
+        client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection = get_mongo_client()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     products = list(products_collection.find().skip(skip).limit(limit))
     # Convert MongoDB documents to proper dictionaries with all fields
     products_list = [convert_product_to_dict(p) for p in products]
+
+    # Also include user-listed selling products that are still available
+    try:
+        selling_products_collection = db["selling_products"]
+        selling_products = list(
+            selling_products_collection.find(
+                {
+                    "quantity": {"$gt": 0},
+                    "status": {"$ne": "sold"},
+                }
+            )
+        )
+        for sp in selling_products:
+            products_list.append(
+                {
+                    "_id": str(sp.get("_id")),
+                    "name": sp.get("name", ""),
+                    "description": sp.get("description", ""),
+                    "price": float(sp.get("price", 0)),
+                    "category": sp.get("category", "User Listings"),
+                    "in_stock": int(sp.get("quantity", 0)),
+                    "image_url": sp.get("image_url", ""),
+                    "seller_email": sp.get("seller_email", ""),
+                    "is_user_listing": True,
+                    "source": "selling_products",
+                }
+            )
+    except Exception as e:
+        # Don't break main products listing if selling products fail
+        print(f"Error including selling products: {e}")
+
     return {"products": products_list, "count": len(products_list)}
+
+
+@app.post("/selling-products", response_model=dict)
+def create_selling_product(product: SellingProduct):
+    """Create a new user-listed product in the selling_products collection."""
+    try:
+        client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection = get_mongo_client()
+        selling_products_collection = db["selling_products"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+    now = datetime.utcnow()
+    product_dict = product.dict()
+    product_dict["status"] = product_dict.get("status", "unsold")
+
+    # Basic validation for safe selling
+    selling_type = product_dict.get("selling_type", "normal")
+
+    def _normalize_pincodes(raw_pincodes, fallback_single):
+        pins: List[str] = []
+
+        if isinstance(raw_pincodes, list):
+            pins = [str(pin).strip() for pin in raw_pincodes if str(pin).strip()]
+        elif isinstance(raw_pincodes, str) and raw_pincodes.strip():
+            # Comma or whitespace separated string
+            pins = [p.strip() for p in raw_pincodes.replace(" ", ",").split(",") if p.strip()]
+
+        if not pins and fallback_single:
+            single = str(fallback_single).strip()
+            if single:
+                pins = [single]
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_pins = []
+        for pin in pins:
+            if pin not in seen:
+                seen.add(pin)
+                unique_pins.append(pin)
+        return unique_pins
+
+    normalized_pincodes = _normalize_pincodes(
+        product_dict.get("seller_pincodes"),
+        product_dict.get("seller_pincode"),
+    )
+
+    if selling_type == "safe":
+        if not normalized_pincodes:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one seller pincode is required for safe selling",
+            )
+        if len(normalized_pincodes) > 10:
+            raise HTTPException(
+                status_code=400,
+                detail="You can specify up to 10 pincodes for safe selling",
+            )
+    else:
+        # Non-safe listings should not store pincodes
+        normalized_pincodes = []
+
+    product_dict["seller_pincodes"] = normalized_pincodes
+    product_dict["seller_pincode"] = normalized_pincodes[0] if normalized_pincodes else None
+
+    product_dict["created_at"] = now
+    product_dict["updated_at"] = now
+    result = selling_products_collection.insert_one(product_dict)
+    if result.inserted_id:
+        product_dict["_id"] = str(result.inserted_id)
+        return {"product": product_dict}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to create selling product")
 
 @app.get("/products/search", response_model=dict)
 def search_products(
@@ -905,18 +1037,66 @@ def create_razorpay_order(order_data: dict = Body(...)):
 def create_order(order: OrderCreate):
     """Create an order in the database"""
     try:
-        _, _, _, products_collection, _, _, orders_collection = get_mongo_client()
+        client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection = get_mongo_client()
+        selling_products_collection = db["selling_products"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     
-    # Validate products and check stock
+    from bson import ObjectId
+
+    shipping_pincode = (order.shipping_address.postal_code or "").strip()
+
+    # Validate products and check stock (supports both catalog and user-listed products,
+    # and apply safe-selling pincode rules when needed)
+    validated_items = []
     for item in order.items:
-        from bson import ObjectId
         product = products_collection.find_one({"_id": ObjectId(item.product_id)})
+        source = "products"
+        stock_field = "in_stock"
+
+        if not product:
+            product = selling_products_collection.find_one({"_id": ObjectId(item.product_id)})
+            source = "selling_products"
+            stock_field = "quantity"
+
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        if product.get("in_stock", 0) < item.quantity:
+
+        available = int(product.get(stock_field, 0))
+        if available < item.quantity:
             raise HTTPException(status_code=400, detail=f"Insufficient stock for {item.product_name}")
+
+        # Safe selling rule: if this is a safe-selling listing, the buyer's pincode must match
+        if source == "selling_products":
+            selling_type = product.get("selling_type", "normal")
+
+            raw_pincodes = product.get("seller_pincodes")
+            if not raw_pincodes:
+                single_pin = str(product.get("seller_pincode", "") or "").strip()
+                raw_pincodes = [single_pin] if single_pin else []
+
+            seller_pincodes = [str(pin).strip() for pin in raw_pincodes if str(pin).strip()]
+
+            if selling_type == "safe" and seller_pincodes:
+                if not shipping_pincode or shipping_pincode not in seller_pincodes:
+                    allowed = ", ".join(seller_pincodes)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "This item can only be sold in the following pincodes: "
+                            f"{allowed}. Your shipping pincode is {shipping_pincode or 'not set'}."
+                        ),
+                    )
+
+        validated_items.append(
+            {
+                "item": item,
+                "product": product,
+                "source": source,
+                "stock_field": stock_field,
+                "available": available,
+            }
+        )
     
     # Generate order ID
     order_id = f"ORD{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{os.urandom(4).hex().upper()}"
@@ -937,11 +1117,42 @@ def create_order(order: OrderCreate):
     }
     
     result = orders_collection.insert_one(order_doc)
-    if result.inserted_id:
-        order_doc["_id"] = str(result.inserted_id)
-        return {"order": order_doc, "message": "Order created successfully"}
-    else:
+    if not result.inserted_id:
         raise HTTPException(status_code=500, detail="Failed to create order")
+
+    # Update stock for each item after successful order creation
+    for entry in validated_items:
+        item = entry["item"]
+        product = entry["product"]
+        source = entry["source"]
+        stock_field = entry["stock_field"]
+        available = entry["available"]
+
+        new_quantity = max(available - item.quantity, 0)
+
+        if source == "products":
+            products_collection.update_one(
+                {"_id": product["_id"]},
+                {"$set": {stock_field: new_quantity, "updated_at": datetime.utcnow()}},
+            )
+        else:
+            status = "unsold"
+            if new_quantity <= 0:
+                status = "sold"
+
+            selling_products_collection.update_one(
+                {"_id": product["_id"]},
+                {
+                    "$set": {
+                        stock_field: new_quantity,
+                        "status": status,
+                        "updated_at": datetime.utcnow(),
+                    }
+                },
+            )
+
+    order_doc["_id"] = str(result.inserted_id)
+    return {"order": order_doc, "message": "Order created successfully"}
 
 @app.post("/orders/verify-payment")
 def verify_payment(payment_data: dict = Body(...)):

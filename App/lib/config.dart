@@ -32,7 +32,7 @@ class BackendConfig {
   // ⚠️ CHANGE THIS to your computer's actual IP address
   // Find it by running: ipconfig (Windows) or ifconfig (Mac/Linux)
   // Make sure your phone and computer are on the same Wi-Fi network!
-  static const String computerIpAddress = '10.209.39.25';
+  static const String computerIpAddress = '192.168.1.16';
   static const int port = 8000;
 
   /// Get the backend URL based on the current platform

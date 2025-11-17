@@ -5,7 +5,12 @@ import '../ui_tokens.dart';
 
 /// Auto-sliding sales banner carousel
 class SalesBannerCarousel extends StatefulWidget {
-  const SalesBannerCarousel({Key? key}) : super(key: key);
+  final void Function(String category, double discountPercent)? onShopNow;
+
+  const SalesBannerCarousel({
+    Key? key,
+    this.onShopNow,
+  }) : super(key: key);
 
   @override
   State<SalesBannerCarousel> createState() => _SalesBannerCarouselState();
@@ -23,6 +28,8 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
       'description': 'Huge discounts on all clothing items',
       'color': AppColors.primary,
       'icon': Icons.checkroom,
+      'category': 'Clothing',
+      'discount': 90.0,
     },
     {
       'title': '20% OFF',
@@ -30,6 +37,8 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
       'description': 'Special deals on electronics',
       'color': AppColors.accent,
       'icon': Icons.devices,
+      'category': 'Electronics',
+      'discount': 20.0,
     },
     {
       'title': '50% OFF',
@@ -37,6 +46,8 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
       'description': 'Fresh groceries at amazing prices',
       'color': AppColors.success,
       'icon': Icons.shopping_basket,
+      'category': 'Groceries',
+      'discount': 50.0,
     },
     {
       'title': '30% OFF',
@@ -44,6 +55,8 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
       'description': 'Expand your knowledge with great deals',
       'color': AppColors.warning,
       'icon': Icons.menu_book,
+      'category': 'Books',
+      'discount': 30.0,
     },
     {
       'title': '40% OFF',
@@ -51,6 +64,8 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
       'description': 'Gear up for your fitness journey',
       'color': AppColors.error,
       'icon': Icons.sports_soccer,
+      'category': 'Sports',
+      'discount': 40.0,
     },
   ];
 
@@ -130,7 +145,12 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
   Widget _buildBanner(Map<String, dynamic> banner) {
     return GestureDetector(
       onTap: () {
-        // Navigate to category or handle banner tap
+        final category = banner['category']?.toString();
+        final discountValue = banner['discount'];
+        final discount = discountValue is num ? discountValue.toDouble() : 0.0;
+        if (category != null && widget.onShopNow != null) {
+          widget.onShopNow!(category, discount);
+        }
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: UITokens.spacing16),
@@ -201,7 +221,12 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
-                            // Handle CTA tap
+                            final category = banner['category']?.toString();
+                            final discountValue = banner['discount'];
+                            final discount = discountValue is num ? discountValue.toDouble() : 0.0;
+                            if (category != null && widget.onShopNow != null) {
+                              widget.onShopNow!(category, discount);
+                            }
                           },
                           borderRadius: BorderRadius.circular(20),
                           child: Padding(
