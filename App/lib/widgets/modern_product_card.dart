@@ -105,6 +105,7 @@ class _ModernProductCardState extends State<ModernProductCard>
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Product Image with fade animation
                       ClipRRect(
@@ -147,31 +148,6 @@ class _ModernProductCardState extends State<ModernProductCard>
                                         color: AppColors.onSurfaceVariant,
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Price Badge - Larger and more prominent
-                            Positioned(
-                              bottom: UITokens.spacing12,
-                              right: UITokens.spacing12,
-                              child: PriceTagBadge(price: widget.product.price),
-                            ),
-                            // Gradient overlay for better text visibility
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.black.withOpacity(0.3),
-                                    ],
                                   ),
                                 ),
                               ),
@@ -219,7 +195,7 @@ class _ModernProductCardState extends State<ModernProductCard>
                                           Text(
                                             '₹',
                                             style: TextStyle(
-                                              color: AppColors.primary,
+                                              color: AppColors.onSurface,
                                               fontWeight: FontWeight.w800,
                                               fontSize: 18,
                                               height: 1,
@@ -228,7 +204,7 @@ class _ModernProductCardState extends State<ModernProductCard>
                                           Text(
                                             widget.product.price.toStringAsFixed(0),
                                             style: TextStyle(
-                                              color: AppColors.primary,
+                                              color: AppColors.onSurface,
                                               fontWeight: FontWeight.w800,
                                               fontSize: 24,
                                               height: 1,
@@ -311,6 +287,7 @@ class _ModernProductCardState extends State<ModernProductCard>
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Product Image
                       ClipRRect(
@@ -343,12 +320,6 @@ class _ModernProductCardState extends State<ModernProductCard>
                                       ),
                                     ),
                             ),
-                            // Price Badge
-                            Positioned(
-                              bottom: UITokens.spacing8,
-                              right: UITokens.spacing8,
-                              child: PriceTagBadge(price: widget.product.price, isSmall: true),
-                            ),
                           ],
                         ),
                       ),
@@ -375,7 +346,7 @@ class _ModernProductCardState extends State<ModernProductCard>
                                 Text(
                                   '₹',
                                   style: TextStyle(
-                                    color: AppColors.primary,
+                                    color: AppColors.onSurface,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
                                     height: 1,
@@ -384,7 +355,7 @@ class _ModernProductCardState extends State<ModernProductCard>
                                 Text(
                                   widget.product.price.toStringAsFixed(0),
                                   style: TextStyle(
-                                    color: AppColors.primary,
+                                    color: AppColors.onSurface,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 18,
                                     height: 1,

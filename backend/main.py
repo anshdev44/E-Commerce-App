@@ -8,36 +8,87 @@ from typing import Optional, List, Dict
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 import os
+import razorpay
+import hmac
+import hashlib
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
-MONGO_URL = "mongodb://localhost:27017"
-DATABASE_NAME = "e-commerce-app"
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "e-commerce-app")
 COLLECTION_NAME = "users"
 
+# Global MongoDB connection variables
+client = None
+db = None
+users_collection = None
+products_collection = None
+cart_collection = None
+wishlist_collection = None
+orders_collection = None
 
+def get_mongo_client():
+    """Get or create MongoDB client with retry logic"""
+    global client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection
+    
+    try:
+        if client is None:
+            print(f"Connecting to MongoDB at {MONGO_URL}...")
+            client = MongoClient(
+                MONGO_URL, 
+                serverSelectionTimeoutMS=10000,
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000
+            )
+        
+        # Test connection
+        client.admin.command('ping')
+        
+        # Initialize database and collections
+        if db is None:
+            db = client[DATABASE_NAME]
+            users_collection = db[COLLECTION_NAME]
+            products_collection = db["products"]
+            cart_collection = db["cart"]
+            wishlist_collection = db["wishlist"]
+            orders_collection = db["orders"]
+        
+        return client, db, users_collection, products_collection, cart_collection, wishlist_collection, orders_collection
+    except Exception as e:
+        print(f"MongoDB connection error: {e}")
+        print(f"Connection string: {MONGO_URL}")
+        print("Attempting to reconnect on next request...")
+        # Reset connection to allow retry
+        client = None
+        db = None
+        users_collection = None
+        products_collection = None
+        cart_collection = None
+        wishlist_collection = None
+        orders_collection = None
+        raise
+
+# Try initial connection
 try:
-    client = MongoClient(MONGO_URL)
-    db = client[DATABASE_NAME]
-    users_collection = db[COLLECTION_NAME]
-   
-    client.admin.command('ping')
+    get_mongo_client()
     print("MongoDB connection successful!")
 except Exception as e:
-    print(f"MongoDB connection failed: {e}")
-    client = None
-    db = None
-    users_collection = None
+    print(f"Initial MongoDB connection failed: {e}")
+    print("Will attempt to connect when first request is made.")
 
 app = FastAPI()
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:50787", "http://localhost:8000", "http://127.0.0.1:8000", "http://10.0.2.2:8000", "http://localhost:49887", "http://127.0.0.1:49887"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,104 +139,141 @@ class ProductUpdate(BaseModel):
     updated_at: Optional[datetime] = None
 
 PRODUCTS_COLLECTION_NAME = "products"
-products_collection = db[PRODUCTS_COLLECTION_NAME] if db is not None else None
 
+def convert_product_to_dict(product_doc):
+    """Convert MongoDB product document to a proper dictionary"""
+    if product_doc is None:
+        return None
+    
+    # MongoDB documents from PyMongo are already dict-like, but ensure proper conversion
+    # Handle both dict and BSON document types
+    if isinstance(product_doc, dict):
+        product_dict = product_doc
+    else:
+        # Convert BSON document to dict
+        try:
+            product_dict = dict(product_doc)
+        except (TypeError, AttributeError):
+            # Fallback: try to access as dict
+            product_dict = {k: getattr(product_doc, k, None) for k in dir(product_doc) if not k.startswith('_')}
+    
+    # Get image_url - try multiple possible field names and handle None
+    image_url = (
+        product_dict.get("image_url") or 
+        product_dict.get("imageUrl") or 
+        product_dict.get("image") or 
+        ""
+    )
+    # Ensure it's a string, not None
+    if image_url is None:
+        image_url = ""
+    
+    # Build the result dictionary, ensuring all values are JSON-serializable
+    result = {
+        "_id": str(product_dict.get("_id", "")),
+        "name": str(product_dict.get("name", "")),
+        "description": str(product_dict.get("description", "")),
+        "price": float(product_dict.get("price", 0.0)),
+        "category": str(product_dict.get("category", "")),
+        "in_stock": int(product_dict.get("in_stock", 0)),
+        "image_url": str(image_url),  # Explicitly convert to string
+        "created_at": product_dict.get("created_at"),
+        "updated_at": product_dict.get("updated_at")
+    }
+    
+    return result
 
 def insert_sample_products():
-    if products_collection is None:
-        return
-    if products_collection.count_documents({}) == 0:
-        sample_products = [
-            {
-                "name": "Wireless Mouse",
-                "description": "A smooth and responsive wireless mouse.",
-                "price": 19.99,
-                "category": "Electronics",
-                "in_stock": 50,
-                "image_url": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "Bluetooth Headphones",
-                "description": "Noise-cancelling over-ear headphones.",
-                "price": 59.99,
-                "category": "Electronics",
-                "in_stock": 30,
-                "image_url": "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "Coffee Mug",
-                "description": "Ceramic mug for hot beverages.",
-                "price": 7.99,
-                "category": "Kitchen",
-                "in_stock": 100,
-                "image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "Yoga Mat",
-                "description": "Non-slip yoga mat for all types of exercise.",
-                "price": 25.99,
-                "category": "Sports",
-                "in_stock": 40,
-                "image_url": "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "Classic Novel",
-                "description": "A timeless piece of literature.",
-                "price": 12.49,
-                "category": "Books",
-                "in_stock": 60,
-                "image_url": "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "T-shirt",
-                "description": "100% cotton unisex t-shirt.",
-                "price": 9.99,
-                "category": "Clothing",
-                "in_stock": 80,
-                "image_url": "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "Building Blocks Set",
-                "description": "Creative toy blocks for kids.",
-                "price": 29.99,
-                "category": "Toys",
-                "in_stock": 35,
-                "image_url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-            {
-                "name": "Face Moisturizer",
-                "description": "Hydrating daily face cream.",
-                "price": 15.99,
-                "category": "Beauty",
-                "in_stock": 70,
-                "image_url": "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            },
-        ]
-        products_collection.insert_many(sample_products)
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+        if products_collection.count_documents({}) == 0:
+            sample_products = [
+                {
+                    "name": "Wireless Mouse",
+                    "description": "A smooth and responsive wireless mouse.",
+                    "price": 19.99,
+                    "category": "Electronics",
+                    "in_stock": 50,
+                    "image_url": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "Bluetooth Headphones",
+                    "description": "Noise-cancelling over-ear headphones.",
+                    "price": 59.99,
+                    "category": "Electronics",
+                    "in_stock": 30,
+                    "image_url": "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "Coffee Mug",
+                    "description": "Ceramic mug for hot beverages.",
+                    "price": 7.99,
+                    "category": "Kitchen",
+                    "in_stock": 100,
+                    "image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "Yoga Mat",
+                    "description": "Non-slip yoga mat for all types of exercise.",
+                    "price": 25.99,
+                    "category": "Sports",
+                    "in_stock": 40,
+                    "image_url": "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "Classic Novel",
+                    "description": "A timeless piece of literature.",
+                    "price": 12.49,
+                    "category": "Books",
+                    "in_stock": 60,
+                    "image_url": "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "T-shirt",
+                    "description": "100% cotton unisex t-shirt.",
+                    "price": 9.99,
+                    "category": "Clothing",
+                    "in_stock": 80,
+                    "image_url": "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "Building Blocks Set",
+                    "description": "Creative toy blocks for kids.",
+                    "price": 29.99,
+                    "category": "Toys",
+                    "in_stock": 35,
+                    "image_url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "name": "Face Moisturizer",
+                    "description": "Hydrating daily face cream.",
+                    "price": 15.99,
+                    "category": "Beauty",
+                    "in_stock": 70,
+                    "image_url": "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+            ]
+            products_collection.insert_many(sample_products)
+    except Exception as e:
+        print(f"Could not insert sample products: {e}")
 
 insert_sample_products()
-
-
-CART_COLLECTION = "cart"
-WISHLIST_COLLECTION = "wishlist"
-cart_collection = db[CART_COLLECTION] if db is not None else None
-wishlist_collection = db[WISHLIST_COLLECTION] if db is not None else None
 
 class CartItem(BaseModel):
     product_id: str
@@ -198,6 +286,54 @@ class Cart(BaseModel):
 class Wishlist(BaseModel):
     user_email: str
     product_ids: list[str] = []
+
+class ShippingAddress(BaseModel):
+    full_name: str
+    phone: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str = "India"
+
+class OrderItem(BaseModel):
+    product_id: str
+    product_name: str
+    quantity: int
+    price: float
+    image_url: Optional[str] = None
+
+class OrderCreate(BaseModel):
+    user_email: str
+    items: List[OrderItem]
+    shipping_address: ShippingAddress
+    total_amount: float
+    payment_method: str = "razorpay"
+
+class Order(BaseModel):
+    order_id: str
+    user_email: str
+    items: List[OrderItem]
+    shipping_address: ShippingAddress
+    total_amount: float
+    status: str  # pending, paid, processing, shipped, delivered, cancelled
+    payment_id: Optional[str] = None
+    razorpay_order_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+
+# Initialize Razorpay client
+razorpay_client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    print("Razorpay client initialized")
+else:
+    print("Warning: Razorpay keys not found. Payment features will not work.")
 
 class DiscountStrategy:
     def apply(self, total: float) -> float:
@@ -213,18 +349,41 @@ class FlatDiscount(DiscountStrategy):
     def apply(self, total: float) -> float:
         return max(0, total - self.amount)
 
+def get_discount_strategy(discount_code: Optional[str]) -> Optional[DiscountStrategy]:
+    """Factory function to get discount strategy based on discount code"""
+    if not discount_code:
+        return None
+    
+    discount_code = discount_code.upper()
+    
+    if discount_code == "10PERCENT" or discount_code == "TENOFF":
+        return TenPercentOff()
+    elif discount_code.startswith("FLAT"):
+        # Extract amount from code like "FLAT50"
+        try:
+            amount = float(discount_code.replace("FLAT", ""))
+            return FlatDiscount(amount)
+        except ValueError:
+            return None
+    else:
+        return None
+
 @app.get("/cart", response_model=dict)
 def get_cart(user_email: str):
-    if cart_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart = cart_collection.find_one({"user_email": user_email})
     items = cart["items"] if cart else []
     return {"items": items}
 
 @app.post("/cart/add", response_model=dict)
 def add_to_cart(user_email: str = Body(...), product_id: str = Body(...), quantity: int = Body(1)):
-    if cart_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart = cart_collection.find_one({"user_email": user_email})
     items = cart["items"] if cart else []
     found = False
@@ -244,8 +403,10 @@ def add_to_cart(user_email: str = Body(...), product_id: str = Body(...), quanti
 
 @app.put("/cart/update", response_model=dict)
 def update_cart(user_email: str = Body(...), product_id: str = Body(...), quantity: int = Body(...)):
-    if cart_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart = cart_collection.find_one({"user_email": user_email})
     items = cart["items"] if cart else []
     for item in items:
@@ -264,8 +425,10 @@ def update_cart(user_email: str = Body(...), product_id: str = Body(...), quanti
 
 @app.delete("/cart/remove", response_model=dict)
 def remove_from_cart(user_email: str = Body(...), product_id: str = Body(...)):
-    if cart_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart = cart_collection.find_one({"user_email": user_email})
     items = cart["items"] if cart else []
     items = [item for item in items if item["product_id"] != product_id]
@@ -278,8 +441,10 @@ def remove_from_cart(user_email: str = Body(...), product_id: str = Body(...)):
 
 @app.post("/cart/clear", response_model=dict)
 def clear_cart(user_email: str = Body(...)):
-    if cart_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart_collection.update_one(
         {"user_email": user_email},
         {"$set": {"items": []}},
@@ -289,8 +454,10 @@ def clear_cart(user_email: str = Body(...)):
 
 @app.get("/cart/total", response_model=dict)
 def cart_total(user_email: str, discount: str = None):
-    if cart_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart = cart_collection.find_one({"user_email": user_email})
     items = cart["items"] if cart else []
     total = 0.0
@@ -305,8 +472,10 @@ def cart_total(user_email: str, discount: str = None):
 
 @app.get("/cart/detailed", response_model=dict)
 def get_cart_detailed(user_email: str):
-    if cart_collection is None or products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, cart_collection, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     cart = cart_collection.find_one({"user_email": user_email})
     items = cart["items"] if cart else []
     detailed_items = []
@@ -317,23 +486,28 @@ def get_cart_detailed(user_email: str):
         except Exception:
             prod = None
         if prod:
-            prod["_id"] = str(prod["_id"])
-            detailed_items.append({"product": prod, "quantity": item["quantity"]})
+            # Convert MongoDB document to proper dictionary with all fields
+            product_dict = convert_product_to_dict(prod)
+            detailed_items.append({"product": product_dict, "quantity": item["quantity"]})
     return {"items": detailed_items}
 
 # --- Wishlist Endpoints ---
 @app.get("/wishlist", response_model=dict)
 def get_wishlist(user_email: str):
-    if wishlist_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, _, wishlist_collection, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     wishlist = wishlist_collection.find_one({"user_email": user_email})
     product_ids = wishlist["product_ids"] if wishlist else []
     return {"products": product_ids}
 
 @app.post("/wishlist/add", response_model=dict)
 def add_to_wishlist(user_email: str = Body(...), product_id: str = Body(...)):
-    if wishlist_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, _, wishlist_collection, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     wishlist = wishlist_collection.find_one({"user_email": user_email})
     product_ids = wishlist["product_ids"] if wishlist else []
     if product_id not in product_ids:
@@ -347,8 +521,10 @@ def add_to_wishlist(user_email: str = Body(...), product_id: str = Body(...)):
 
 @app.delete("/wishlist/remove", response_model=dict)
 def remove_from_wishlist(user_email: str = Body(...), product_id: str = Body(...)):
-    if wishlist_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, _, wishlist_collection, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     wishlist = wishlist_collection.find_one({"user_email": user_email})
     product_ids = wishlist["product_ids"] if wishlist else []
     product_ids = [pid for pid in product_ids if pid != product_id]
@@ -361,8 +537,10 @@ def remove_from_wishlist(user_email: str = Body(...), product_id: str = Body(...
 
 @app.post("/wishlist/clear", response_model=dict)
 def clear_wishlist(user_email: str = Body(...)):
-    if wishlist_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, _, _, wishlist_collection, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     wishlist_collection.update_one(
         {"user_email": user_email},
         {"$set": {"product_ids": []}},
@@ -372,8 +550,10 @@ def clear_wishlist(user_email: str = Body(...)):
 
 @app.get("/wishlist/detailed", response_model=dict)
 def get_wishlist_detailed(user_email: str):
-    if wishlist_collection is None or products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, wishlist_collection, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     wishlist = wishlist_collection.find_one({"user_email": user_email})
     product_ids = wishlist["product_ids"] if wishlist else []
     from bson import ObjectId
@@ -384,8 +564,9 @@ def get_wishlist_detailed(user_email: str):
         except Exception:
             prod = None
         if prod:
-            prod["_id"] = str(prod["_id"])
-            products.append(prod)
+            # Convert MongoDB document to proper dictionary with all fields
+            product_dict = convert_product_to_dict(prod)
+            products.append(product_dict)
     return {"products": products}
 
 
@@ -395,15 +576,82 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    if client is not None and client.admin.command('ping'):
+    try:
+        client, _, _, _, _, _, _ = get_mongo_client()
+        client.admin.command('ping')
         return {"status": "healthy", "database": "MongoDB connected"}
-    return {"status": "unhealthy", "database": "MongoDB disconnected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": "MongoDB disconnected", "error": str(e)}
+
+@app.get("/debug/products")
+def debug_products():
+    """Debug endpoint to see raw product data"""
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+        products = list(products_collection.find().limit(2))
+        result = []
+        for p in products:
+            # Get raw document
+            raw_doc = dict(p) if hasattr(p, '__dict__') else p
+            # Get converted version
+            converted = convert_product_to_dict(p)
+            result.append({
+                "raw": {k: str(v) for k, v in raw_doc.items()},
+                "converted": converted
+            })
+        return {"debug": result, "count": len(products)}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/products/fix-images")
+def fix_broken_image_urls():
+    """Fix broken image URLs (source.unsplash.com) to use working placeholder images"""
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+        
+        # Find all products with broken source.unsplash.com URLs
+        broken_products = list(products_collection.find({
+            "image_url": {"$regex": "source\\.unsplash\\.com", "$options": "i"}
+        }))
+        
+        # Mapping of product categories to working placeholder images
+        # Using picsum.photos which is reliable and provides random images
+        category_images = {
+            "Electronics": "https://picsum.photos/seed/electronics/400/400",
+            "Toys": "https://picsum.photos/seed/toys/400/400",
+            "Clothing": "https://picsum.photos/seed/clothing/400/400",
+            "Books": "https://picsum.photos/seed/books/400/400",
+            "Sports": "https://picsum.photos/seed/sports/400/400",
+            "Beauty": "https://picsum.photos/seed/beauty/400/400",
+            "Kitchen": "https://picsum.photos/seed/kitchen/400/400",
+        }
+        
+        updated_count = 0
+        for product in broken_products:
+            category = product.get("category", "")
+            # Use category-specific image or default placeholder
+            new_image_url = category_images.get(category, "https://picsum.photos/400/400")
+            
+            products_collection.update_one(
+                {"_id": product["_id"]},
+                {"$set": {"image_url": new_image_url}}
+            )
+            updated_count += 1
+        
+        return {
+            "message": f"Updated {updated_count} products with broken image URLs",
+            "updated_count": updated_count,
+            "total_broken": len(broken_products)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fixing images: {str(e)}")
 
 @app.post("/signup", response_model=Token)
 def signup(user: UserCreate):
-    if users_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    
+    try:
+        _, _, users_collection, _, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     
     existing_user = users_collection.find_one({"email": user.email})
     if existing_user:
@@ -429,9 +677,10 @@ def signup(user: UserCreate):
 
 @app.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    if users_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    
+    try:
+        _, _, users_collection, _, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     
     user = users_collection.find_one({"email": form_data.username})
     
@@ -443,16 +692,75 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.get("/users")
 def get_users():
-    if users_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, users_collection, _, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     
     users = list(users_collection.find({}, {"hashed_password": 0})) 
     return {"users": users, "count": len(users)}
 
+@app.get("/users/profile")
+def get_user_profile(email: str):
+    """Get user profile by email"""
+    try:
+        _, _, users_collection, _, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    user = users_collection.find_one({"email": email}, {"hashed_password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Convert ObjectId to string
+    user["_id"] = str(user["_id"])
+    return user
+
+@app.put("/users/profile")
+def update_user_profile(email: str, profile_data: dict = Body(...)):
+    """Update user profile"""
+    try:
+        _, _, users_collection, _, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    user = users_collection.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prepare update data (exclude email and password from updates)
+    update_data = {}
+    allowed_fields = ["username", "full_name", "phone_number", "address", "profile_photo_url"]
+    
+    for field in allowed_fields:
+        if field in profile_data:
+            update_data[field] = profile_data[field]
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    # Add updated_at timestamp
+    update_data["updated_at"] = datetime.utcnow()
+    
+    result = users_collection.update_one(
+        {"email": email},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=400, detail="No changes made")
+    
+    # Return updated user
+    updated_user = users_collection.find_one({"email": email}, {"hashed_password": 0})
+    updated_user["_id"] = str(updated_user["_id"])
+    return {"message": "Profile updated successfully", "user": updated_user}
+
 @app.post("/products", response_model=dict)
 def create_product(product: Product):
-    if products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     now = datetime.utcnow()
     product_dict = product.dict()
     product_dict["created_at"] = now
@@ -466,12 +774,14 @@ def create_product(product: Product):
 
 @app.get("/products", response_model=dict)
 def list_products(skip: int = 0, limit: int = 20):
-    if products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     products = list(products_collection.find().skip(skip).limit(limit))
-    for p in products:
-        p["_id"] = str(p["_id"])
-    return {"products": products, "count": len(products)}
+    # Convert MongoDB documents to proper dictionaries with all fields
+    products_list = [convert_product_to_dict(p) for p in products]
+    return {"products": products_list, "count": len(products_list)}
 
 @app.get("/products/search", response_model=dict)
 def search_products(
@@ -482,8 +792,10 @@ def search_products(
     skip: int = 0,
     limit: int = 20
 ):
-    if products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     query = {}
     if name:
         query["name"] = {"$regex": name, "$options": "i"}
@@ -497,25 +809,30 @@ def search_products(
             price_query["$lte"] = max_price
         query["price"] = price_query
     products = list(products_collection.find(query).skip(skip).limit(limit))
-    for p in products:
-        p["_id"] = str(p["_id"])
-    return {"products": products, "count": len(products)}
+    # Convert MongoDB documents to proper dictionaries with all fields
+    products_list = [convert_product_to_dict(p) for p in products]
+    return {"products": products_list, "count": len(products_list)}
 
 @app.get("/products/{product_id}", response_model=dict)
 def get_product(product_id: str):
-    if products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     from bson import ObjectId
     product = products_collection.find_one({"_id": ObjectId(product_id)})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    product["_id"] = str(product["_id"])
-    return {"product": product}
+    # Convert MongoDB document to proper dictionary with all fields
+    product_dict = convert_product_to_dict(product)
+    return {"product": product_dict}
 
 @app.put("/products/{product_id}", response_model=dict)
 def update_product(product_id: str, product: ProductUpdate):
-    if products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     from bson import ObjectId
     update_data = {k: v for k, v in product.dict().items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
@@ -523,20 +840,262 @@ def update_product(product_id: str, product: ProductUpdate):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Product not found")
     updated_product = products_collection.find_one({"_id": ObjectId(product_id)})
-    updated_product["_id"] = str(updated_product["_id"])
-    return {"product": updated_product}
+    # Convert MongoDB document to proper dictionary with all fields
+    product_dict = convert_product_to_dict(updated_product)
+    return {"product": product_dict}
 
 @app.delete("/products/{product_id}", response_model=dict)
 def delete_product(product_id: str):
-    if products_collection is None:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        _, _, _, products_collection, _, _, _ = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     from bson import ObjectId
     result = products_collection.delete_one({"_id": ObjectId(product_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Product not found")
     return {"message": "Product deleted"}
 
+# ========== ORDER & PAYMENT ENDPOINTS ==========
+
+@app.post("/orders/create-razorpay-order")
+def create_razorpay_order(order_data: dict = Body(...)):
+    """Create a Razorpay order for payment"""
+    # If Razorpay is not configured, simulate order creation for demo
+    if razorpay_client is None:
+        amount = int(order_data.get("amount", 0) * 100)  # Convert to paise
+        currency = order_data.get("currency", "INR")
+        receipt = order_data.get("receipt", f"order_{datetime.utcnow().timestamp()}")
+        
+        # Generate a demo order ID
+        demo_order_id = f"order_demo_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{os.urandom(4).hex()}"
+        
+        return {
+            "order_id": demo_order_id,
+            "amount": amount,
+            "currency": currency,
+            "key_id": "demo_key_id"
+        }
+    
+    try:
+        amount = int(order_data.get("amount", 0) * 100)  # Convert to paise
+        currency = order_data.get("currency", "INR")
+        receipt = order_data.get("receipt", f"order_{datetime.utcnow().timestamp()}")
+        
+        razorpay_order = razorpay_client.order.create({
+            "amount": amount,
+            "currency": currency,
+            "receipt": receipt,
+            "notes": {
+                "user_email": order_data.get("user_email", ""),
+                "order_type": "buy_now"
+            }
+        })
+        
+        return {
+            "order_id": razorpay_order["id"],
+            "amount": razorpay_order["amount"],
+            "currency": razorpay_order["currency"],
+            "key_id": RAZORPAY_KEY_ID
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create Razorpay order: {str(e)}")
+
+@app.post("/orders/create")
+def create_order(order: OrderCreate):
+    """Create an order in the database"""
+    try:
+        _, _, _, products_collection, _, _, orders_collection = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    # Validate products and check stock
+    for item in order.items:
+        from bson import ObjectId
+        product = products_collection.find_one({"_id": ObjectId(item.product_id)})
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+        if product.get("in_stock", 0) < item.quantity:
+            raise HTTPException(status_code=400, detail=f"Insufficient stock for {item.product_name}")
+    
+    # Generate order ID
+    order_id = f"ORD{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{os.urandom(4).hex().upper()}"
+    now = datetime.utcnow()
+    
+    # Create order document
+    order_doc = {
+        "order_id": order_id,
+        "user_email": order.user_email,
+        "items": [item.dict() for item in order.items],
+        "shipping_address": order.shipping_address.dict(),
+        "total_amount": order.total_amount,
+        "status": "pending",
+        "payment_id": None,
+        "razorpay_order_id": None,
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    result = orders_collection.insert_one(order_doc)
+    if result.inserted_id:
+        order_doc["_id"] = str(result.inserted_id)
+        return {"order": order_doc, "message": "Order created successfully"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to create order")
+
+@app.post("/orders/verify-payment")
+def verify_payment(payment_data: dict = Body(...)):
+    """Verify Razorpay payment and update order status"""
+    try:
+        _, _, _, products_collection, _, _, orders_collection = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    razorpay_order_id = payment_data.get("razorpay_order_id")
+    razorpay_payment_id = payment_data.get("razorpay_payment_id")
+    razorpay_signature = payment_data.get("razorpay_signature")
+    order_id = payment_data.get("order_id")
+    
+    if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id]):
+        raise HTTPException(status_code=400, detail="Missing payment verification data")
+    
+    # Demo mode: Skip Razorpay verification if not configured
+    if razorpay_client is None:
+        # In demo mode, just verify the order exists and update it
+        order = orders_collection.find_one({"order_id": order_id})
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Update stock
+        from bson import ObjectId
+        for item in order["items"]:
+            product = products_collection.find_one({"_id": ObjectId(item["product_id"])})
+            if product:
+                new_stock = product.get("in_stock", 0) - item["quantity"]
+                products_collection.update_one(
+                    {"_id": ObjectId(item["product_id"])},
+                    {"$set": {"in_stock": max(0, new_stock), "updated_at": datetime.utcnow()}}
+                )
+        
+        # Update order status
+        orders_collection.update_one(
+            {"order_id": order_id},
+            {
+                "$set": {
+                    "status": "paid",
+                    "payment_id": razorpay_payment_id,
+                    "razorpay_order_id": razorpay_order_id,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        updated_order = orders_collection.find_one({"order_id": order_id})
+        updated_order["_id"] = str(updated_order["_id"])
+        
+        return {
+            "success": True,
+            "message": "Payment verified and order confirmed (demo mode)",
+            "order": updated_order
+        }
+    
+    # Production mode: Full Razorpay verification
+    # Verify signature
+    message = f"{razorpay_order_id}|{razorpay_payment_id}"
+    generated_signature = hmac.new(
+        RAZORPAY_KEY_SECRET.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(generated_signature, razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+    
+    # Verify payment with Razorpay
+    try:
+        payment = razorpay_client.payment.fetch(razorpay_payment_id)
+        if payment["status"] != "authorized" and payment["status"] != "captured":
+            raise HTTPException(status_code=400, detail=f"Payment not successful. Status: {payment['status']}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
+    
+    # Update order in database
+    order = orders_collection.find_one({"order_id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Update stock
+    from bson import ObjectId
+    for item in order["items"]:
+        product = products_collection.find_one({"_id": ObjectId(item["product_id"])})
+        if product:
+            new_stock = product.get("in_stock", 0) - item["quantity"]
+            products_collection.update_one(
+                {"_id": ObjectId(item["product_id"])},
+                {"$set": {"in_stock": max(0, new_stock), "updated_at": datetime.utcnow()}}
+            )
+    
+    # Update order status
+    orders_collection.update_one(
+        {"order_id": order_id},
+        {
+            "$set": {
+                "status": "paid",
+                "payment_id": razorpay_payment_id,
+                "razorpay_order_id": razorpay_order_id,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    updated_order = orders_collection.find_one({"order_id": order_id})
+    updated_order["_id"] = str(updated_order["_id"])
+    
+    return {
+        "success": True,
+        "message": "Payment verified and order confirmed",
+        "order": updated_order
+    }
+
+@app.get("/orders")
+def get_orders(user_email: str):
+    """Get all orders for a user"""
+    try:
+        _, _, _, _, _, _, orders_collection = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    orders = list(orders_collection.find({"user_email": user_email}).sort("created_at", -1))
+    
+    # Convert to list of dicts
+    orders_list = []
+    for order in orders:
+        order_dict = dict(order)
+        order_dict["_id"] = str(order_dict["_id"])
+        orders_list.append(order_dict)
+    
+    return {"orders": orders_list, "count": len(orders_list)}
+
+@app.get("/orders/{order_id}")
+def get_order(order_id: str):
+    """Get a specific order by ID"""
+    try:
+        _, _, _, _, _, _, orders_collection = get_mongo_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    order = orders_collection.find_one({"order_id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order_dict = dict(order)
+    order_dict["_id"] = str(order_dict["_id"])
+    return {"order": order_dict}
+
 if __name__ == "__main__":
     import uvicorn
     print("Starting FastAPI server with MongoDB...")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    print("Server will be accessible at:")
+    print("  - http://localhost:8000 (local)")
+    print("  - http://192.168.1.15:8000 (network)")
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # 0.0.0.0 allows connections from all network interfaces

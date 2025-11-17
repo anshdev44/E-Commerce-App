@@ -5,3 +5,6 @@ python-jose
 pydantic
 python-multipart
 pymongo
+requests
+razorpay
+python-dotenv

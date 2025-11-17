@@ -6,6 +6,7 @@ import 'dart:io' show Platform;
 import 'dart:async';
 import 'app_theme.dart';
 import 'ui_tokens.dart';
+import 'config.dart';
 import 'widgets/sales_banner_carousel.dart';
 import 'widgets/category_section.dart';
 import 'widgets/modern_search_bar.dart';
@@ -15,6 +16,9 @@ import 'widgets/bottom_nav_bar.dart';
 
 // Conditional import for web-only JavaScript interop
 import 'razorpay_web.dart' if (dart.library.io) 'razorpay_stub.dart' as razorpay_js;
+
+// Razorpay Flutter SDK for mobile
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 
 class Product {
@@ -351,25 +355,19 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
+        final url = '${BackendConfig.getBackendUrl()}/login';
+        print('Attempting to connect to: $url');
+        
         final response = await http.post(
-          Uri.parse('${getBackendUrl()}/login'),
+          Uri.parse(url),
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
           body: 'username=${Uri.encodeComponent(_emailController.text.trim())}&password=${Uri.encodeComponent(_passwordController.text)}',
-        );
+        ).timeout(const Duration(seconds: 10));
+        
         setState(() => _isLoading = false);
         if (response.statusCode == 200) {
           final token = jsonDecode(response.body);
@@ -386,8 +384,13 @@ class _LoginPageState extends State<LoginPage> {
         }
       } catch (e) {
         setState(() => _isLoading = false);
+        final errorMessage = e.toString();
+        print('Login error: $errorMessage');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Connection failed: ${errorMessage.contains('Failed host lookup') ? 'Cannot reach server. Check IP: ${BackendConfig.computerIpAddress}' : errorMessage}'),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }
@@ -571,22 +574,12 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   void _signup() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
         final response = await http.post(
-          Uri.parse('${getBackendUrl()}/signup'),
+          Uri.parse('${BackendConfig.getBackendUrl()}/signup'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'username': _usernameController.text.trim(),
@@ -917,23 +910,14 @@ class _ProductListPageState extends State<ProductListPage> {
     }
   }
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   Future<void> _fetchProducts() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
-      final response = await http.get(Uri.parse('${getBackendUrl()}/products'));
+      // Fetch all products by setting a high limit
+      final response = await http.get(Uri.parse('${BackendConfig.getBackendUrl()}/products?skip=0&limit=1000'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final products = (data['products'] as List)
@@ -963,7 +947,7 @@ class _ProductListPageState extends State<ProductListPage> {
       _error = null;
     });
     try {
-      final uri = Uri.parse('${getBackendUrl()}/products/search?name=${Uri.encodeComponent(query)}');
+      final uri = Uri.parse('${BackendConfig.getBackendUrl()}/products/search?name=${Uri.encodeComponent(query)}');
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1099,48 +1083,15 @@ class _ProductListPageState extends State<ProductListPage> {
         elevation: 0,
         shadowColor: Colors.black.withOpacity(0.05),
         surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: false, // Remove drawer icon
+        automaticallyImplyLeading: true, // Enable drawer icon automatically
         iconTheme: const IconThemeData(color: AppColors.onSurface, size: 24),
         title: Row(
           children: [
-            // App Logo with enhanced styling
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                ),
-                borderRadius: BorderRadius.circular(UITokens.radiusMedium),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.shopping_bag_rounded,
-                color: AppColors.onPrimary,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: UITokens.spacing12),
-            Text(
-              'Adiana',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const Spacer(),
-            // Modern Search Bar
-            SizedBox(
-              width: 220,
+            // Extended Search Bar - takes remaining space
+            Expanded(
               child: ModernSearchBar(
                 controller: _searchController,
-                hintText: 'Search products...',
+                hintText: 'Search Adiana',
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value;
@@ -1155,63 +1106,8 @@ class _ProductListPageState extends State<ProductListPage> {
             ),
           ],
         ),
-        actions: [
-          // Cart Icon
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: Stack(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.shopping_cart_outlined, color: AppColors.onSurface),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CartScreen()),
-                    );
-                  },
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accent.withOpacity(0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                    child: const Text(
-                      '0',
-                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Wishlist Icon
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: IconButton(
-              icon: Icon(Icons.favorite_border, color: AppColors.onSurface),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WishlistScreen()),
-                );
-              },
-            ),
-          ),
-        ],
       ),
+      drawer: _buildDrawer(context),
       body: Column(
         children: [
           // Search Results Header
@@ -1352,6 +1248,110 @@ class _ProductListPageState extends State<ProductListPage> {
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: AppColors.surface,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          // Drawer Header
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppColors.onPrimary,
+                  child: Text(
+                    currentUserEmail != null && currentUserEmail!.isNotEmpty
+                        ? currentUserEmail![0].toUpperCase()
+                        : 'U',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  currentUserEmail ?? 'Guest',
+                  style: TextStyle(
+                    color: AppColors.onPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Menu Items
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Your Account'),
+            onTap: () {
+              Navigator.pop(context);
+              if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please log in first')),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AccountPage()),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.sell_outlined),
+            title: const Text('Sell Item'),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sell Item feature coming soon')),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Help & Support'),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Help & Support coming soon')),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Settings coming soon')),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Logout'),
+            onTap: () {
+              Navigator.pop(context);
+              currentUserEmail = null;
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -1500,21 +1500,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _checkCartAndWishlist();
   }
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   Future<void> _checkCartAndWishlist() async {
     setState(() { _loading = true; });
     try {
-      final cartResp = await http.get(Uri.parse('${getBackendUrl()}/cart?user_email=$currentUserEmail'));
-      final wishlistResp = await http.get(Uri.parse('${getBackendUrl()}/wishlist?user_email=$currentUserEmail'));
+      final cartResp = await http.get(Uri.parse('${BackendConfig.getBackendUrl()}/cart?user_email=$currentUserEmail'));
+      final wishlistResp = await http.get(Uri.parse('${BackendConfig.getBackendUrl()}/wishlist?user_email=$currentUserEmail'));
       if (cartResp.statusCode == 200 && wishlistResp.statusCode == 200) {
         final cartData = jsonDecode(cartResp.body);
         final wishlistData = jsonDecode(wishlistResp.body);
@@ -1538,7 +1528,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     }
     if (_inCart) {
       final resp = await http.delete(
-        Uri.parse('${getBackendUrl()}/cart/remove'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/cart/remove'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_email': currentUserEmail, 'product_id': widget.product.id}),
       );
@@ -1547,7 +1537,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       }
     } else {
       final resp = await http.post(
-        Uri.parse('${getBackendUrl()}/cart/add'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/cart/add'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_email': currentUserEmail, 'product_id': widget.product.id, 'quantity': _quantity}),
       );
@@ -1564,7 +1554,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     }
     if (_inWishlist) {
       final resp = await http.delete(
-        Uri.parse('${getBackendUrl()}/wishlist/remove'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/wishlist/remove'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_email': currentUserEmail, 'product_id': widget.product.id}),
       );
@@ -1573,7 +1563,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       }
     } else {
       final resp = await http.post(
-        Uri.parse('${getBackendUrl()}/wishlist/add'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/wishlist/add'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_email': currentUserEmail, 'product_id': widget.product.id}),
       );
@@ -1635,117 +1625,167 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         backgroundColor: AppColors.background,
         body: CustomScrollView(
           slivers: [
+            // Simple AppBar with hero image
             SliverAppBar(
               pinned: true,
-              expandedHeight: 350,
+              expandedHeight: 300,
               backgroundColor: AppColors.surface,
               foregroundColor: AppColors.onSurface,
-              title: Text(
-                product.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
-                ),
-              ),
+              elevation: 0,
               actions: [
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: IconButton(
-                    tooltip: _inWishlist ? 'Remove from Wishlist' : 'Add to Wishlist',
-                    onPressed: _toggleWishlist,
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _inWishlist 
-                          ? AppColors.error.withOpacity(0.1)
-                          : AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
-                        border: _inWishlist 
-                          ? Border.all(color: AppColors.error.withOpacity(0.3))
-                          : null,
-                      ),
-                      child: Icon(
-                        _inWishlist ? Icons.favorite : Icons.favorite_border,
-                        color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
+                IconButton(
+                  icon: Icon(
+                    _inWishlist ? Icons.favorite : Icons.favorite_border,
+                    size: 20,
+                    color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
+                  ),
+                  onPressed: _toggleWishlist,
+                ),
+                const SizedBox(width: 8),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  color: AppColors.surface,
+                  child: Image.network(
+                    product.imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFFF7F7F7),
+                      child: const Center(
+                        child: Icon(Icons.image_outlined, size: 48, color: Color(0xFF9CA3AF)),
                       ),
                     ),
                   ),
-                ),
-              ],
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      child: Image.network(
-                        product.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.image_outlined, size: 64, color: AppColors.onSurfaceVariant),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Premium gradient overlay that fades to background color
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            AppColors.background.withOpacity(0.3),
-                            AppColors.background.withOpacity(0.8),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Premium price badge
-                    Positioned(
-                      right: 20,
-                      bottom: 20,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accent.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          '₹${product.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
               bottom: TabBar(
                 indicatorColor: AppColors.primary,
                 labelColor: AppColors.primary,
                 unselectedLabelColor: AppColors.onSurfaceVariant,
-                labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
                 tabs: const [
                   Tab(text: 'Description'),
                   Tab(text: 'Details'),
                   Tab(text: 'Reviews'),
                 ],
+              ),
+            ),
+            // Product Information Section
+            SliverToBoxAdapter(
+              child: Container(
+                color: AppColors.surface,
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Product Name - Clean Bold Title
+                    Text(
+                      product.name,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                        fontSize: 22,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Category and Stock - Small Pill Tags
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F7F7),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                          ),
+                          child: Text(
+                            product.category,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F7F7),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                          ),
+                          child: Text(
+                            '${product.inStock} in stock',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Minimal Price Card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F7F7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Price',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                              fontWeight: FontWeight.w400,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '₹',
+                                style: TextStyle(
+                                  color: AppColors.onSurface,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 24,
+                                  height: 1,
+                                ),
+                              ),
+                              Text(
+                                product.price.toStringAsFixed(0),
+                                style: TextStyle(
+                                  color: AppColors.onSurface,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 32,
+                                  height: 1,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             SliverFillRemaining(
@@ -1754,177 +1794,103 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 children: [
                   // Description Tab
                   ListView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     children: [
-                      Card(
-                        elevation: 2,
-                        shadowColor: Colors.black.withOpacity(0.05),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                product.name,
-                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-                                    ),
-                                    child: Text(
-                                      product.category,
-                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: product.inStock > 10 
-                                        ? AppColors.success.withOpacity(0.1)
-                                        : AppColors.warning.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.inventory_2_outlined,
-                                          size: 14,
-                                          color: product.inStock > 10 
-                                            ? AppColors.success
-                                            : AppColors.warning,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'In stock: ${product.inStock}',
-                                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                            color: product.inStock > 10 
-                                              ? AppColors.success
-                                              : AppColors.warning,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                product.description,
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: AppColors.onSurfaceVariant,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
-                          ),
+                      // Product Description
+                      Text(
+                        'Description',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
+                      Text(
+                        product.description.isNotEmpty 
+                          ? product.description 
+                          : 'No description available for this product.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
                       
                       // Quantity Selector
-                      Card(
-                        elevation: 2,
-                        shadowColor: Colors.black.withOpacity(0.05),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Quantity',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.remove, color: AppColors.primary),
-                                      onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      child: Text(
-                                        '$_quantity',
-                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.onSurface,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.add, color: AppColors.primary),
-                                      onPressed: () => setState(() => _quantity++),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                      Text(
+                        'Quantity',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      
-                      // Features
-                      Card(
-                        elevation: 2,
-                        shadowColor: Colors.black.withOpacity(0.05),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Features & Benefits',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _quantity > 1 ? () => setState(() => _quantity--) : null,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(10),
+                                  bottomLeft: Radius.circular(10),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Icon(
+                                    Icons.remove,
+                                    size: 18,
+                                    color: _quantity > 1 
+                                      ? AppColors.onSurface 
+                                      : AppColors.onSurfaceVariant.withOpacity(0.4),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              decoration: BoxDecoration(
+                                border: Border.symmetric(
+                                  vertical: BorderSide(
+                                    color: const Color(0xFFE0E0E0),
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                '$_quantity',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                   color: AppColors.onSurface,
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              _buildFeatureItem(
-                                Icons.local_shipping_outlined,
-                                AppColors.accent,
-                                'Free delivery on orders over ₹499',
-                                'Standard delivery in 3-5 business days',
+                            ),
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => setState(() => _quantity++),
+                                borderRadius: const BorderRadius.only(
+                                  topRight: Radius.circular(10),
+                                  bottomRight: Radius.circular(10),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Icon(
+                                    Icons.add,
+                                    size: 18,
+                                    color: AppColors.onSurface,
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: 12),
-                              _buildFeatureItem(
-                                Icons.assignment_turned_in_outlined,
-                                AppColors.success,
-                                '7-day replacement policy',
-                                'Easy returns if the item is damaged or defective',
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 100),
@@ -1932,64 +1898,40 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                   // Details Tab
                   ListView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     children: [
-                      Card(
-                        elevation: 2,
-                        shadowColor: Colors.black.withOpacity(0.05),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Product Details',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              _buildDetailItem('Material', 'Premium quality materials'),
-                              _buildDetailItem('Warranty', '1 year limited warranty'),
-                              _buildDetailItem('Care', 'Refer to instructions included in the package'),
-                              _buildDetailItem('Origin', 'Made in India'),
-                              _buildDetailItem('Weight', 'Lightweight and portable'),
-                            ],
-                          ),
+                      Text(
+                        'Product Details',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      _buildDetailItem('Material', 'Premium quality materials'),
+                      _buildDetailItem('Warranty', '1 year limited warranty'),
+                      _buildDetailItem('Care', 'Refer to instructions included in the package'),
+                      _buildDetailItem('Origin', 'Made in India'),
+                      _buildDetailItem('Weight', 'Lightweight and portable'),
                     ],
                   ),
                   // Reviews Tab
                   ListView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     children: [
-                      Card(
-                        elevation: 2,
-                        shadowColor: Colors.black.withOpacity(0.05),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Customer Reviews',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              _buildReviewItem('Sarah M.', 'Great value for money!', 'Loved the quality and delivery was quick.'),
-                              _buildReviewItem('John D.', 'As described', 'Product matches the description and images.'),
-                              _buildReviewItem('Emma L.', 'Excellent quality', 'Very satisfied with my purchase.'),
-                            ],
-                          ),
+                      Text(
+                        'Customer Reviews',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      _buildReviewItem('Sarah M.', 'Great value for money!', 'Loved the quality and delivery was quick.'),
+                      const SizedBox(height: 12),
+                      _buildReviewItem('John D.', 'As described', 'Product matches the description and images.'),
+                      const SizedBox(height: 12),
+                      _buildReviewItem('Emma L.', 'Excellent quality', 'Very satisfied with my purchase.'),
                     ],
                   ),
                 ],
@@ -2001,95 +1943,70 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
+            border: Border(
+              top: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
+            ),
           ),
           child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _toggleWishlist,
-                        icon: Icon(
+                // White Outline Button
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _toggleWishlist,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: const Color(0xFFE0E0E0),
+                        width: 1,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
                           _inWishlist ? Icons.favorite : Icons.favorite_border,
-                          color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
+                          size: 18,
+                          color: AppColors.onSurface,
                         ),
-                        label: Text(
+                        const SizedBox(width: 8),
+                        Text(
                           _inWishlist ? 'Wishlisted' : 'Wishlist',
                           style: TextStyle(
-                            color: _inWishlist ? AppColors.error : AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
+                            color: AppColors.onSurface,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
                           ),
                         ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: _inWishlist ? AppColors.error : AppColors.border,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        onPressed: _toggleCart,
-                        icon: Icon(
-                          _inCart ? Icons.shopping_cart : Icons.add_shopping_cart,
-                          color: Colors.white,
-                        ),
-                        label: Text(
-                          _inCart ? 'In Cart' : 'Add to Cart',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _inCart ? AppColors.success : AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          shadowColor: (_inCart ? AppColors.success : AppColors.primary).withOpacity(0.2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                // Buy Now Button - Full Width
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
+                const SizedBox(width: 12),
+                // Primary Solid Button
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
                     onPressed: () => _handleBuyNow(),
-                    icon: const Icon(Icons.shopping_bag, color: Colors.white),
-                    label: const Text(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(
                       'Buy Now',
                       style: TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      shadowColor: AppColors.accent.withOpacity(0.3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),
@@ -2098,42 +2015,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildFeatureItem(IconData icon, Color color, String title, String subtitle) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -2169,11 +2050,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   Widget _buildReviewItem(String name, String title, String content) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2181,13 +2062,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           Row(
             children: [
               CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                radius: 14,
+                backgroundColor: const Color(0xFFF7F7F7),
                 child: Text(
                   name[0],
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: AppColors.onSurface,
                     fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -2246,16 +2128,6 @@ class _CartScreenState extends State<CartScreen> {
     _fetchCart();
   }
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   Future<void> _fetchCart() async {
     if (currentUserEmail == null || currentUserEmail!.isEmpty) {
       setState(() { _error = 'Please log in first'; _loading = false; });
@@ -2263,7 +2135,7 @@ class _CartScreenState extends State<CartScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await http.get(Uri.parse('${getBackendUrl()}/cart/detailed?user_email=$currentUserEmail'));
+      final response = await http.get(Uri.parse('${BackendConfig.getBackendUrl()}/cart/detailed?user_email=$currentUserEmail'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() { _items = data['items']; _loading = false; });
@@ -2486,7 +2358,7 @@ class _CartScreenState extends State<CartScreen> {
                                     ),
                                     onPressed: () async {
                                       await http.delete(
-                                        Uri.parse('${getBackendUrl()}/cart/remove'),
+                                        Uri.parse('${BackendConfig.getBackendUrl()}/cart/remove'),
                                         headers: {'Content-Type': 'application/json'},
                                         body: jsonEncode({'user_email': currentUserEmail, 'product_id': product['_id']}),
                                       );
@@ -2520,7 +2392,7 @@ class _CartScreenState extends State<CartScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     FutureBuilder<http.Response>(
-                      future: http.get(Uri.parse('${getBackendUrl()}/cart/total?user_email=$currentUserEmail')),
+                      future: http.get(Uri.parse('${BackendConfig.getBackendUrl()}/cart/total?user_email=$currentUserEmail')),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
                           return Text(
@@ -2603,16 +2475,6 @@ class _WishlistScreenState extends State<WishlistScreen> {
     _fetchWishlist();
   }
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   Future<void> _fetchWishlist() async {
     if (currentUserEmail == null || currentUserEmail!.isEmpty) {
       setState(() { _error = 'Please log in first'; _loading = false; });
@@ -2620,7 +2482,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await http.get(Uri.parse('${getBackendUrl()}/wishlist/detailed?user_email=$currentUserEmail'));
+      final response = await http.get(Uri.parse('${BackendConfig.getBackendUrl()}/wishlist/detailed?user_email=$currentUserEmail'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() { _products = data['products']; _loading = false; });
@@ -2828,7 +2690,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                             icon: Icon(Icons.favorite, color: AppColors.error, size: 20),
                                             onPressed: () async {
                                               await http.delete(
-                                                Uri.parse('${getBackendUrl()}/wishlist/remove'),
+                                                Uri.parse('${BackendConfig.getBackendUrl()}/wishlist/remove'),
                                                 headers: {'Content-Type': 'application/json'},
                                                 body: jsonEncode({'user_email': currentUserEmail, 'product_id': product['_id']}),
                                               );
@@ -2916,16 +2778,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _postalCodeController = TextEditingController();
   bool _isProcessing = false;
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -2947,7 +2799,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }) async {
     try {
       final verifyResponse = await http.post(
-        Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders/verify-payment'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'razorpay_order_id': razorpayOrderId,
@@ -3065,6 +2917,87 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  Future<void> _openRazorpayMobile({
+    required BuildContext context,
+    required String keyId,
+    required String orderId,
+    required double amount,
+    required String orderIdForVerification,
+  }) async {
+    if (kIsWeb) return;
+
+    try {
+      final razorpay = Razorpay();
+      final amountInPaise = (amount * 100).toInt();
+
+      // Set up payment success handler
+      razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) async {
+        await _handlePaymentSuccess(
+          context: context,
+          razorpayOrderId: response.orderId ?? orderId,
+          razorpayPaymentId: response.paymentId ?? '',
+          razorpaySignature: response.signature ?? '',
+          orderId: orderIdForVerification,
+        );
+        razorpay.clear();
+      });
+
+      // Set up payment error handler
+      razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment failed: ${response.message ?? 'Unknown error'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        razorpay.clear();
+      });
+
+      // Set up external wallet handler
+      razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, (ExternalWalletResponse response) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('External wallet selected: ${response.walletName}'),
+            ),
+          );
+        }
+      });
+
+      // Open Razorpay checkout
+      final options = {
+        'key': keyId,
+        'amount': amountInPaise,
+        'name': 'Adiana',
+        'description': 'Order Payment',
+        'order_id': orderId,
+        'prefill': {
+          'contact': _phoneController.text,
+          'email': currentUserEmail ?? '',
+          'name': _nameController.text,
+        },
+        'theme': {
+          'color': '#4A90E2',
+        },
+      };
+
+      razorpay.open(options);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening payment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _processPayment() async {
     print('_processPayment called'); // Debug: Check if method is being called
     
@@ -3091,7 +3024,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
       // Step 1: Create order in database
       final orderResponse = await http.post(
-        Uri.parse('${getBackendUrl()}/orders/create'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders/create'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_email': currentUserEmail,
@@ -3128,7 +3061,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
       // Step 2: Create Razorpay order
       final razorpayOrderResponse = await http.post(
-        Uri.parse('${getBackendUrl()}/orders/create-razorpay-order'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders/create-razorpay-order'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'amount': totalAmount,
@@ -3153,7 +3086,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           // Demo mode - simulate payment
           await Future.delayed(const Duration(seconds: 2));
           final verifyResponse = await http.post(
-            Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+            Uri.parse('${BackendConfig.getBackendUrl()}/orders/verify-payment'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'razorpay_order_id': razorpayOrderId,
@@ -3183,6 +3116,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
         }
       } else {
         // For mobile, use Razorpay Flutter SDK
+        await _openRazorpayMobile(
+          context: context,
+          keyId: razorpayKeyId,
+          orderId: razorpayOrderId,
+          amount: totalAmount,
+          orderIdForVerification: orderId,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Mobile: Install Razorpay Flutter SDK for payment integration'),
@@ -3461,16 +3404,6 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
   final _postalCodeController = TextEditingController();
   bool _isProcessing = false;
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -3502,7 +3435,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
   }) async {
     try {
       final verifyResponse = await http.post(
-        Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders/verify-payment'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'razorpay_order_id': razorpayOrderId,
@@ -3517,7 +3450,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
         // Clear cart after successful payment
         try {
           await http.post(
-            Uri.parse('${getBackendUrl()}/cart/clear'),
+            Uri.parse('${BackendConfig.getBackendUrl()}/cart/clear'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'user_email': currentUserEmail}),
           );
@@ -3617,6 +3550,87 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
     }
   }
 
+  Future<void> _openRazorpayMobile({
+    required BuildContext context,
+    required String keyId,
+    required String orderId,
+    required double amount,
+    required String orderIdForVerification,
+  }) async {
+    if (kIsWeb) return;
+
+    try {
+      final razorpay = Razorpay();
+      final amountInPaise = (amount * 100).toInt();
+
+      // Set up payment success handler
+      razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) async {
+        await _handlePaymentSuccess(
+          context: context,
+          razorpayOrderId: response.orderId ?? orderId,
+          razorpayPaymentId: response.paymentId ?? '',
+          razorpaySignature: response.signature ?? '',
+          orderId: orderIdForVerification,
+        );
+        razorpay.clear();
+      });
+
+      // Set up payment error handler
+      razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment failed: ${response.message ?? 'Unknown error'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        razorpay.clear();
+      });
+
+      // Set up external wallet handler
+      razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, (ExternalWalletResponse response) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('External wallet selected: ${response.walletName}'),
+            ),
+          );
+        }
+      });
+
+      // Open Razorpay checkout
+      final options = {
+        'key': keyId,
+        'amount': amountInPaise,
+        'name': 'Adiana',
+        'description': 'Cart Order Payment',
+        'order_id': orderId,
+        'prefill': {
+          'contact': _phoneController.text,
+          'email': currentUserEmail ?? '',
+          'name': _nameController.text,
+        },
+        'theme': {
+          'color': '#4A90E2',
+        },
+      };
+
+      razorpay.open(options);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening payment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _processPayment() async {
     if (currentUserEmail == null || currentUserEmail!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3651,7 +3665,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
 
       // Step 1: Create order in database
       final orderResponse = await http.post(
-        Uri.parse('${getBackendUrl()}/orders/create'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders/create'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_email': currentUserEmail,
@@ -3680,7 +3694,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
 
       // Step 2: Create Razorpay order
       final razorpayOrderResponse = await http.post(
-        Uri.parse('${getBackendUrl()}/orders/create-razorpay-order'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders/create-razorpay-order'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'amount': totalAmount,
@@ -3703,7 +3717,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
         if (razorpayKeyId == 'demo_key_id') {
           await Future.delayed(const Duration(seconds: 2));
           final verifyResponse = await http.post(
-            Uri.parse('${getBackendUrl()}/orders/verify-payment'),
+            Uri.parse('${BackendConfig.getBackendUrl()}/orders/verify-payment'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'razorpay_order_id': razorpayOrderId,
@@ -3716,7 +3730,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
             setState(() => _isProcessing = false);
             try {
               await http.post(
-                Uri.parse('${getBackendUrl()}/cart/clear'),
+                Uri.parse('${BackendConfig.getBackendUrl()}/cart/clear'),
                 headers: {'Content-Type': 'application/json'},
                 body: jsonEncode({'user_email': currentUserEmail}),
               );
@@ -3738,12 +3752,14 @@ class _CartCheckoutPageState extends State<CartCheckoutPage> {
           );
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mobile: Install Razorpay Flutter SDK for payment integration'),
-          ),
+        // For mobile, use Razorpay Flutter SDK
+        await _openRazorpayMobile(
+          context: context,
+          keyId: razorpayKeyId,
+          orderId: razorpayOrderId,
+          amount: totalAmount,
+          orderIdForVerification: orderId,
         );
-        setState(() => _isProcessing = false);
       }
     } catch (e) {
       if (mounted) {
@@ -4071,16 +4087,6 @@ class _OrdersPageState extends State<OrdersPage> {
   bool _isLoading = true;
   String? _error;
 
-  String getBackendUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    } else {
-      return 'http://localhost:8000';
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -4095,7 +4101,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('${getBackendUrl()}/orders?user_email=$currentUserEmail'),
+        Uri.parse('${BackendConfig.getBackendUrl()}/orders?user_email=$currentUserEmail'),
       );
 
       if (response.statusCode == 200) {
@@ -4321,4 +4327,449 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 }
+
+// Account Page
+class AccountPage extends StatefulWidget {
+  const AccountPage({Key? key}) : super(key: key);
+
+  @override
+  State<AccountPage> createState() => _AccountPageState();
+}
+
+class _AccountPageState extends State<AccountPage> {
+  Map<String, dynamic>? _userProfile;
+  bool _isLoading = true;
+  bool _isEditing = false;
+  String? _error;
+
+  final _formKey = GlobalKey<FormState>();
+  final _fullNameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _usernameController = TextEditingController();
+  String? _profilePhotoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserProfile() async {
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      setState(() {
+        _error = 'Not logged in';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('${BackendConfig.getBackendUrl()}/users/profile?email=${Uri.encodeComponent(currentUserEmail!)}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _userProfile = data;
+          _fullNameController.text = data['full_name'] ?? '';
+          _phoneController.text = data['phone_number'] ?? '';
+          _addressController.text = data['address'] ?? '';
+          _usernameController.text = data['username'] ?? '';
+          _profilePhotoUrl = data['profile_photo_url'];
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load profile';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Not logged in')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final profileData = {
+        'username': _usernameController.text.trim(),
+        'full_name': _fullNameController.text.trim(),
+        'phone_number': _phoneController.text.trim(),
+        'address': _addressController.text.trim(),
+        if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty)
+          'profile_photo_url': _profilePhotoUrl,
+      };
+
+      final response = await http.put(
+        Uri.parse('${BackendConfig.getBackendUrl()}/users/profile?email=${Uri.encodeComponent(currentUserEmail!)}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(profileData),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _userProfile = data['user'];
+          _isEditing = false;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!')),
+        );
+      } else {
+        final error = jsonDecode(response.body);
+        setState(() {
+          _error = error['detail'] ?? 'Failed to update profile';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _pickProfilePhoto() async {
+    // For now, just allow entering a URL
+    // In a real app, you'd use image_picker package
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profile Photo'),
+        content: TextField(
+          decoration: const InputDecoration(
+            labelText: 'Enter photo URL',
+            hintText: 'https://example.com/photo.jpg',
+          ),
+          onSubmitted: (value) {
+            setState(() {
+              _profilePhotoUrl = value.trim();
+            });
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _profilePhotoUrl = '';
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Your Account'),
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.onSurface),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null && _userProfile == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _error!,
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadUserProfile,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(UITokens.spacing24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Profile Photo Section
+                        Center(
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 60,
+                                    backgroundColor: AppColors.surfaceVariant,
+                                    backgroundImage: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
+                                        ? NetworkImage(_profilePhotoUrl!)
+                                        : null,
+                                    child: _profilePhotoUrl == null || _profilePhotoUrl!.isEmpty
+                                        ? Text(
+                                            currentUserEmail != null && currentUserEmail!.isNotEmpty
+                                                ? currentUserEmail![0].toUpperCase()
+                                                : 'U',
+                                            style: TextStyle(
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.onSurfaceVariant,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  if (_isEditing)
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: AppColors.primary,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.camera_alt, size: 18, color: AppColors.onPrimary),
+                                          onPressed: _pickProfilePhoto,
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (!_isEditing && _profilePhotoUrl == null)
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() => _isEditing = true);
+                                  },
+                                  child: const Text('Add Photo'),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: UITokens.spacing32),
+
+                        // Email (Read-only)
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            side: BorderSide(color: AppColors.border, width: 1),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(UITokens.spacing16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Email',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  currentUserEmail ?? 'Not available',
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: UITokens.spacing16),
+
+                        // Username
+                        TextFormField(
+                          controller: _usernameController,
+                          enabled: _isEditing,
+                          decoration: InputDecoration(
+                            labelText: 'Username',
+                            hintText: 'Enter your username',
+                            prefixIcon: const Icon(Icons.person_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (_isEditing && (value == null || value.trim().isEmpty)) {
+                              return 'Username is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: UITokens.spacing16),
+
+                        // Full Name
+                        TextFormField(
+                          controller: _fullNameController,
+                          enabled: _isEditing,
+                          decoration: InputDecoration(
+                            labelText: 'Full Name',
+                            hintText: 'Enter your full name',
+                            prefixIcon: const Icon(Icons.badge_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: UITokens.spacing16),
+
+                        // Phone Number
+                        TextFormField(
+                          controller: _phoneController,
+                          enabled: _isEditing,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: 'Phone Number',
+                            hintText: 'Enter your phone number',
+                            prefixIcon: const Icon(Icons.phone_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (_isEditing && value != null && value.trim().isNotEmpty) {
+                              if (!RegExp(r'^[0-9+\-\s()]+$').hasMatch(value)) {
+                                return 'Invalid phone number';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: UITokens.spacing16),
+
+                        // Address
+                        TextFormField(
+                          controller: _addressController,
+                          enabled: _isEditing,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'Address',
+                            hintText: 'Enter your address',
+                            prefixIcon: const Icon(Icons.home_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: UITokens.spacing32),
+
+                        // Action Buttons
+                        if (_isEditing)
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _saveProfile,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.onPrimary,
+                                    padding: const EdgeInsets.symmetric(vertical: UITokens.spacing16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                                    ),
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Text('Save Changes'),
+                                ),
+                              ),
+                              const SizedBox(height: UITokens.spacing12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isEditing = false;
+                                      _loadUserProfile(); // Reload to reset changes
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: UITokens.spacing16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                                    ),
+                                  ),
+                                  child: const Text('Cancel'),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() => _isEditing = true);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.onPrimary,
+                                padding: const EdgeInsets.symmetric(vertical: UITokens.spacing16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(UITokens.radiusMedium),
+                                ),
+                              ),
+                              child: const Text('Edit Profile'),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+    );
+  }
+}
+
 

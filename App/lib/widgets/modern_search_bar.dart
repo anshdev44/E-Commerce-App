@@ -105,8 +105,8 @@ class _ModernSearchBarState extends State<ModernSearchBar>
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,

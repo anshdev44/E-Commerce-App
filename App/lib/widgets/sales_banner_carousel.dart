@@ -135,18 +135,11 @@ class _SalesBannerCarouselState extends State<SalesBannerCarousel> {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: UITokens.spacing16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              (banner['color'] as Color).withOpacity(0.95),
-              (banner['color'] as Color).withOpacity(0.75),
-            ],
-          ),
+          color: const Color(0xFF232F3E), // RGB(35, 47, 62)
           borderRadius: BorderRadius.circular(UITokens.radiusLarge),
           boxShadow: [
             BoxShadow(
-              color: (banner['color'] as Color).withOpacity(0.3),
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),

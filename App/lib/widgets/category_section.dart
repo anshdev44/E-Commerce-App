@@ -125,32 +125,36 @@ class _CategoryProductListPage extends StatelessWidget {
                 ),
               ),
             )
-          : GridView.builder(
-              padding: const EdgeInsets.all(UITokens.spacing16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: UITokens.spacing16,
-                mainAxisSpacing: UITokens.spacing16,
-              ),
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                return TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(milliseconds: 300 + (index * 30)),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value,
-                      child: Transform.scale(
-                        scale: 0.8 + (value * 0.2),
-                        child: ModernProductCard(
-                          product: products[index],
-                          onTap: onProductTap != null
-                              ? () => onProductTap!(products[index])
-                              : null,
-                        ),
-                      ),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return GridView.builder(
+                  padding: const EdgeInsets.all(UITokens.spacing16),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.7,
+                    crossAxisSpacing: UITokens.spacing16,
+                    mainAxisSpacing: UITokens.spacing16,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: Duration(milliseconds: 300 + (index * 30)),
+                      curve: Curves.easeOut,
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.scale(
+                            scale: 0.8 + (value * 0.2),
+                            child: ModernProductCard(
+                              product: products[index],
+                              onTap: onProductTap != null
+                                  ? () => onProductTap!(products[index])
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );

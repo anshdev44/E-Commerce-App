@@ -136,3 +136,5 @@ class HorizontalProductShimmer extends StatelessWidget {
   }
 }
 
+
+

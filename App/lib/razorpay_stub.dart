@@ -1,23 +1,27 @@
-// Web-only implementation using dart:js
-import 'dart:js' as js;
-
+// Stub implementation for non-web platforms (mobile)
 class RazorpayJS {
   static dynamic createOptions(Map<String, dynamic> options) {
-    return js.JsObject.jsify(options);
+    // Stub - not used on mobile
+    return null;
   }
 
   static dynamic allowInterop(Function callback) {
-    return js.allowInterop(callback);
+    // Stub - not used on mobile
+    return callback;
   }
 
   static dynamic getRazorpayFromContext() {
-    return js.context['Razorpay'];
+    // Stub - not used on mobile
+    return null;
   }
 
   static dynamic createRazorpayInstance(dynamic razorpay, List<dynamic> args) {
-    return js.JsObject(razorpay, args);
+    // Stub - not used on mobile
+    return null;
   }
 }
+
+
 
 
 
